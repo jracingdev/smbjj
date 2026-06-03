@@ -3,9 +3,10 @@ const MANIFEST = 'flutter-app-manifest';
 const TEMP = 'flutter-temp-cache';
 const CACHE_NAME = 'flutter-app-cache';
 
-const RESOURCES = {"assets/AssetManifest.bin": "1cec29c6a0a66289aadbe7c0caf3f38e",
-"assets/AssetManifest.bin.json": "7316e8b8262f0d3839a51a7f915f0c9a",
-"assets/AssetManifest.json": "cbc53aae578e2a642eeb1fb80e583f99",
+const RESOURCES = {"assets/AssetManifest.bin": "f274451decfd0b8166b1b55e5bbc0bea",
+"assets/AssetManifest.bin.json": "a4fcc0d9a17ffee038399ddaffd04061",
+"assets/AssetManifest.json": "290a68bafd7c3b3d2361e3932c06c7a7",
+"assets/assets/images/gft_logo.png": "64eb1cdbe43721620972693943f6bc83",
 "assets/assets/images/logo.png": "9d0ff3a64a32c7f033d9468d3c366d0c",
 "assets/FontManifest.json": "dc3d03800ccca4601324923c0b1d6d57",
 "assets/fonts/MaterialIcons-Regular.otf": "484200857ccd0e747b1718eba72c6006",
@@ -23,14 +24,14 @@ const RESOURCES = {"assets/AssetManifest.bin": "1cec29c6a0a66289aadbe7c0caf3f38e
 "canvaskit/skwasm.wasm": "39dd80367a4e71582d234948adc521c0",
 "favicon.png": "9d0ff3a64a32c7f033d9468d3c366d0c",
 "flutter.js": "83d881c1dbb6d6bcd6b42e274605b69c",
-"flutter_bootstrap.js": "72a06180eb71fe2def7bdfd46f709e56",
+"flutter_bootstrap.js": "1f41008d6b6270841be61ad308164d63",
 "icons/Icon-192.png": "ac9a721a12bbc803b44f645561ecb1e1",
 "icons/Icon-512.png": "96e752610906ba2a93c65f8abe1645f1",
 "icons/Icon-maskable-192.png": "c457ef57daa1d16f64b27b786ec2ea3c",
 "icons/Icon-maskable-512.png": "301a7604d45b3e739efc881eb04896ea",
 "index.html": "d690c6c615c13ca58ff0a02399fb7bcd",
 "/": "d690c6c615c13ca58ff0a02399fb7bcd",
-"main.dart.js": "0cf7524f021d5e3cf0c964db599ca8b2",
+"main.dart.js": "431c40fde6ee4af0e7b6098175709164",
 "manifest.json": "f9d941e44e9de5f07e509e049dc3f18c",
 "version.json": "91e8d5bc5989c02b949947e7751c3b25"};
 // The application shell files that are downloaded before a service worker can
