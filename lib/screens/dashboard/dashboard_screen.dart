@@ -44,20 +44,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _load() async {
     final now = DateTime.now();
-    final results = await Future.wait([
-      _alunoRepo.listar(),
-      _mensRepo.listar(mes: now.month, ano: now.year),
-      _avisoRepo.listar(apenasAtivos: !context.read<AuthProvider>().isAdmin),
-      _eventoRepo.listar(),
-    ]);
-    if (mounted) {
-      setState(() {
-        _alunos = results[0] as List<Aluno>;
-        _mensalidades = results[1] as List<Mensalidade>;
-        _avisos = results[2] as List<Aviso>;
-        _eventos = results[3] as List<Evento>;
-        _loading = false;
-      });
+    final isAdmin = context.read<AuthProvider>().isAdmin;
+    try {
+      if (isAdmin) {
+        final results = await Future.wait([
+          _alunoRepo.listar(),
+          _mensRepo.listar(mes: now.month, ano: now.year),
+          _avisoRepo.listar(apenasAtivos: false),
+          _eventoRepo.listar(),
+        ]);
+        if (mounted) setState(() {
+          _alunos = results[0] as List<Aluno>;
+          _mensalidades = results[1] as List<Mensalidade>;
+          _avisos = results[2] as List<Aviso>;
+          _eventos = results[3] as List<Evento>;
+          _loading = false;
+        });
+      } else {
+        final results = await Future.wait([
+          _avisoRepo.listar(apenasAtivos: true),
+          _eventoRepo.listar(),
+        ]);
+        if (mounted) setState(() {
+          _avisos = results[0] as List<Aviso>;
+          _eventos = results[1] as List<Evento>;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
