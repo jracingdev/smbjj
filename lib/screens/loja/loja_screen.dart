@@ -19,13 +19,11 @@ class LojaScreen extends StatefulWidget {
   State<LojaScreen> createState() => _LojaScreenState();
 }
 
-class _LojaScreenState extends State<LojaScreen> with SingleTickerProviderStateMixin {
+class _LojaScreenState extends State<LojaScreen> {
   final _repo = ProdutoRepository();
   List<Produto> _produtos = [];
   bool _loading = true;
   String _filtroCategoria = 'todos';
-  late TabController _tabs;
-
   static const _categorias = ['kimono', 'faixa', 'camisa', 'short', 'outro'];
   static const _catLabel = {'kimono':'Kimono','faixa':'Faixa','camisa':'Camisa','short':'Short','outro':'Outro'};
   static const _catColor = {
@@ -36,13 +34,8 @@ class _LojaScreenState extends State<LojaScreen> with SingleTickerProviderStateM
   @override
   void initState() {
     super.initState();
-    final isAdmin = context.read<AuthProvider>().isAdmin;
-    _tabs = TabController(length: isAdmin ? 2 : 2, vsync: this);
     _load();
   }
-
-  @override
-  void dispose() { _tabs.dispose(); super.dispose(); }
 
   Future<void> _load() async {
     setState(() => _loading = true);
@@ -71,18 +64,16 @@ class _LojaScreenState extends State<LojaScreen> with SingleTickerProviderStateM
     return Scaffold(
       appBar: AppBar(
         title: const Text('Loja SM BJJ'),
-        actions: [IconButton(icon: const Icon(Icons.refresh), onPressed: _load)],
-        bottom: TabBar(
-          controller: _tabs,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white60,
-          indicatorColor: Colors.white,
-          tabs: isAdmin
-              ? const [Tab(icon: Icon(Icons.shopping_bag_outlined, size: 18), text: 'Produtos'),
-                       Tab(icon: Icon(Icons.list_alt, size: 18), text: 'Pedidos')]
-              : const [Tab(icon: Icon(Icons.shopping_bag_outlined, size: 18), text: 'Produtos'),
-                       Tab(icon: Icon(Icons.receipt_long_outlined, size: 18), text: 'Meus Pedidos')],
-        ),
+        actions: [
+          IconButton(
+            icon: Icon(isAdmin ? Icons.list_alt : Icons.receipt_long_outlined),
+            tooltip: isAdmin ? 'Pedidos' : 'Meus Pedidos',
+            onPressed: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => isAdmin ? const PedidosAdminScreen() : const MeusPedidosScreen(),
+            )),
+          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _load),
+        ],
       ),
       floatingActionButton: isAdmin ? FloatingActionButton.extended(
         onPressed: () async {
@@ -95,9 +86,7 @@ class _LojaScreenState extends State<LojaScreen> with SingleTickerProviderStateM
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text('Novo Produto', style: TextStyle(color: Colors.white)),
       ) : null,
-      body: TabBarView(controller: _tabs, children: [
-        // Aba Produtos
-        Column(children: [
+      body: Column(children: [
         // Filtros
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -138,9 +127,6 @@ class _LojaScreenState extends State<LojaScreen> with SingleTickerProviderStateM
                       },
                     ),
         ),
-        ]),
-        // Aba Pedidos (admin) ou Meus Pedidos (aluno)
-        isAdmin ? const PedidosAdminScreen() : const MeusPedidosScreen(),
       ]),
     );
   }
@@ -201,7 +187,8 @@ class _LojaScreenState extends State<LojaScreen> with SingleTickerProviderStateM
         content: Text('Pedido enviado! Acompanhe em "Meus Pedidos".'),
         backgroundColor: verdeEscuro,
       ));
-      _tabs.animateTo(1);
+      // Navega para Meus Pedidos
+      Navigator.push(ctx, MaterialPageRoute(builder: (_) => const MeusPedidosScreen()));
     }
   }
 }
@@ -655,6 +642,7 @@ class _ProdutoSheetState extends State<_ProdutoSheet> {
     );
   }
 }
+
 
 
 
