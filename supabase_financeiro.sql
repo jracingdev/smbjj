@@ -12,6 +12,7 @@ create table if not exists public.financeiro_config (
   desconto_3o_familiar_percent numeric not null default 15,
   desconto_mesmo_pagante_percent numeric not null default 5,
   dia_vencimento integer not null default 10,
+  regras_extras jsonb not null default '[]'::jsonb,
   updated_at timestamptz default now()
 );
 

@@ -4,9 +4,10 @@ import '../models/aluno.dart';
 import 'bjj_utils.dart';
 
 /// Tipo de mensagem de cobrança conforme o dia do mês.
-String? tipoCobrancaDoDia(int diaHoje, int diaVencimento) {
+String? tipoCobrancaDoDia(int diaHoje, int diaVencimento, {List<int> diasExtras = const []}) {
   if (diaHoje == 1) return 'aviso1';
   if (diaHoje == 5) return 'aviso5';
+  if (diasExtras.contains(diaHoje)) return 'aviso_extra';
   if (diaHoje == diaVencimento) return 'vencimento';
   return null;
 }
@@ -19,6 +20,8 @@ String labelTipoCobranca(String tipo, int diaVencimento) {
       return 'Lembrete (Dia 5)';
     case 'vencimento':
       return 'Vencimento (Dia $diaVencimento)';
+    case 'aviso_extra':
+      return 'Lembrete extra';
     default:
       return 'Cobrança';
   }
@@ -50,6 +53,13 @@ String _buildMessage({
           'Só um lembrete rápido: a mensalidade de *$mesNome/$ano* vence em *$diasRestantes dias* (dia $diaVencimento).\n\n'
           'Valor: *R\$ $valorStr*\n\n'
           'Evite o atraso e garanta sua continuidade nas aulas! 🥋✨';
+
+    case 'aviso_extra':
+      return 'Olá, $nome! 👋\n\n'
+          'Lembrete da SM BJJ: mensalidade de *$mesNome/$ano*.\n'
+          'Vencimento dia *$diaVencimento*.\n'
+          'Valor: *R\$ $valorStr*\n\n'
+          'Qualquer dúvida, fale conosco! 🥋';
 
     case 'vencimento':
       return 'Olá, $nome! ⚠️\n\n'

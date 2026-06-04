@@ -9,6 +9,7 @@ class CobrancaWhatsAppBanner extends StatelessWidget {
   final int mes;
   final int ano;
   final int diaVencimento;
+  final List<int> diasWhatsAppExtras;
   final List<Mensalidade> mensalidades;
   final List<Aluno> alunos;
   final bool mesAtualSelecionado;
@@ -18,6 +19,7 @@ class CobrancaWhatsAppBanner extends StatelessWidget {
     required this.mes,
     required this.ano,
     required this.diaVencimento,
+    this.diasWhatsAppExtras = const [],
     required this.mensalidades,
     required this.alunos,
     required this.mesAtualSelecionado,
@@ -27,7 +29,7 @@ class CobrancaWhatsAppBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final hoje = DateTime.now();
     final tipo = mesAtualSelecionado && hoje.year == ano && hoje.month == mes
-        ? tipoCobrancaDoDia(hoje.day, diaVencimento)
+        ? tipoCobrancaDoDia(hoje.day, diaVencimento, diasExtras: diasWhatsAppExtras)
         : null;
 
     final pendentes = mensalidades.where((m) => m.status != 'pago' && !m.cancelada).toList();

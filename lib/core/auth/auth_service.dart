@@ -207,7 +207,10 @@ class AuthService {
       return const AuthResult(status: AuthStatus.error, message: 'Informe um e-mail válido.');
     }
     try {
-      await supabase.auth.resetPasswordForEmail(e);
+      await supabase.auth.resetPasswordForEmail(
+        e,
+        redirectTo: kIsWeb ? 'https://jracingdev.github.io/smbjj/' : null,
+      );
       return const AuthResult(
         status: AuthStatus.success,
         message: 'Link enviado! Abra o e-mail para definir uma nova senha.',

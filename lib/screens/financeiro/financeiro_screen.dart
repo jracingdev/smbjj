@@ -150,6 +150,13 @@ class _FinanceiroScreenState extends State<FinanceiroScreen> with SingleTickerPr
                   alunosPagos: _alunosPagos,
                   alunosNaoPagos: _alunosNaoPagos,
                   valorAluno: _valorAluno,
+                  onEditarRegras: () async {
+                    final ok = await Navigator.push<bool>(
+                      context,
+                      MaterialPageRoute(builder: (_) => const FinanceiroConfigScreen()),
+                    );
+                    if (ok == true) _load();
+                  },
                   onChangeMes: (m, a) { setState(() { _mes = m; _ano = a; }); _load(); },
                 ),
                 _MensalidadesTab(
@@ -192,6 +199,7 @@ class _PainelBI extends StatelessWidget {
   final int mes, ano, diaAtual;
   final double totalArrecadado, totalEsperado;
   final double Function(Aluno) valorAluno;
+  final VoidCallback onEditarRegras;
   final Function(int mes, int ano) onChangeMes;
 
   const _PainelBI({
@@ -210,6 +218,7 @@ class _PainelBI extends StatelessWidget {
     required this.alunosPagos,
     required this.alunosNaoPagos,
     required this.valorAluno,
+    required this.onEditarRegras,
     required this.onChangeMes,
   });
 
@@ -370,17 +379,46 @@ class _PainelBI extends StatelessWidget {
       ])),
       const SizedBox(height: 12),
 
-      _BiCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Regras de Cobrança', style: TextStyle(fontWeight: FontWeight.w700)),
-        const SizedBox(height: 8),
-        _BiRow(label: 'Vencimento mensal', value: 'Dia $venc', icon: Icons.event),
-        _BiRow(label: 'Valor adulto', value: 'R\$ ${config.valorAdulto.toStringAsFixed(2)}', icon: Icons.person),
-        _BiRow(label: 'Valor menor de 18', value: 'R\$ ${config.valorMenor.toStringAsFixed(2)}', icon: Icons.child_care),
-        _BiRow(label: '2º familiar', value: '${config.desconto2oFamiliarPercent.toStringAsFixed(0)}% off', icon: Icons.family_restroom),
-        _BiRow(label: '3º+ familiar', value: '${config.desconto3oFamiliarPercent.toStringAsFixed(0)}% off', icon: Icons.groups),
-        _BiRow(label: 'Mesmo pagante', value: '${config.descontoMesmoPagantePercent.toStringAsFixed(0)}% off', icon: Icons.account_balance_wallet),
-        _BiRow(label: 'Bolsistas', value: 'Até 100% no cadastro', icon: Icons.school, cor: Colors.blue),
-      ])),
+      _BiCard(
+        child: InkWell(
+          onTap: onEditarRegras,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text('Regras de Cobrança', style: TextStyle(fontWeight: FontWeight.w700)),
+                  ),
+                  TextButton.icon(
+                    onPressed: onEditarRegras,
+                    icon: const Icon(Icons.edit, size: 18),
+                    label: const Text('Editar'),
+                    style: TextButton.styleFrom(foregroundColor: verdeEscuro),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              _BiRow(label: 'Vencimento mensal', value: 'Dia $venc', icon: Icons.event),
+              _BiRow(label: 'Valor adulto', value: 'R\$ ${config.valorAdulto.toStringAsFixed(2)}', icon: Icons.person),
+              _BiRow(label: 'Valor menor de 18', value: 'R\$ ${config.valorMenor.toStringAsFixed(2)}', icon: Icons.child_care),
+              _BiRow(label: '2º familiar', value: '${config.desconto2oFamiliarPercent.toStringAsFixed(0)}% off', icon: Icons.family_restroom),
+              _BiRow(label: '3º+ familiar', value: '${config.desconto3oFamiliarPercent.toStringAsFixed(0)}% off', icon: Icons.groups),
+              _BiRow(label: 'Mesmo pagante', value: '${config.descontoMesmoPagantePercent.toStringAsFixed(0)}% off', icon: Icons.account_balance_wallet),
+              _BiRow(label: 'Bolsistas', value: 'Até 100% no cadastro', icon: Icons.school, cor: Colors.blue),
+              ...config.regrasExtras.where((r) => r.ativa).map(
+                    (r) => _BiRow(label: r.titulo, value: r.valorExibicao, icon: Icons.rule),
+                  ),
+              const SizedBox(height: 4),
+              Text(
+                'Toque em Editar para alterar valores ou criar nova regra.',
+                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              ),
+            ]),
+          ),
+        ),
+      ),
       const SizedBox(height: 80),
     ]);
   }
@@ -588,6 +626,7 @@ class _MensalidadesTab extends StatelessWidget {
         mes: mes,
         ano: ano,
         diaVencimento: config.diaVencimento,
+        diasWhatsAppExtras: config.diasWhatsAppExtras,
         mensalidades: mensalidades,
         alunos: alunos,
         mesAtualSelecionado: mes == DateTime.now().month && ano == DateTime.now().year,
