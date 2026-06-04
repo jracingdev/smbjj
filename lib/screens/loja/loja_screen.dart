@@ -1,4 +1,7 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import '../../utils/image_utils.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
@@ -442,6 +445,8 @@ class _ProdutoSheetState extends State<_ProdutoSheet> {
   bool _ativo = true;
   bool _loading = false;
   String? _fotoUrl;
+  Uint8List? _fotoBytes;
+  String _fotoExt = 'jpg';
 
   // Grade de variantes: lista de {cor, tamanho, estoque}
   final List<Map<String, dynamic>> _variantes = [];
@@ -481,24 +486,91 @@ class _ProdutoSheetState extends State<_ProdutoSheet> {
 
   void _removeVariante(int i) => setState(() => _variantes.removeAt(i));
 
+  static bool _isUrlRemota(String? url) =>
+      url != null && (url.startsWith('http://') || url.startsWith('https://'));
+
+  String? _fotoRemotaExistente() {
+    final atual = widget.produto?.fotoUrl;
+    return _isUrlRemota(atual) ? atual : null;
+  }
+
   Future<void> _pickFoto() async {
     final picker = ImagePicker();
     final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (img != null) setState(() => _fotoUrl = img.path);
+    if (img == null) return;
+    final bytes = await img.readAsBytes();
+    final nome = img.name.toLowerCase();
+    var ext = 'jpg';
+    if (nome.endsWith('.png')) ext = 'png';
+    if (nome.endsWith('.webp')) ext = 'webp';
+    setState(() {
+      _fotoBytes = bytes;
+      _fotoExt = ext;
+      _fotoUrl = kIsWeb ? null : img.path;
+    });
+  }
+
+  Widget _previewFoto() {
+    if (_fotoBytes != null) {
+      return Image.memory(_fotoBytes!, fit: BoxFit.cover);
+    }
+    if (_isUrlRemota(_fotoUrl)) {
+      return imageWidgetFromPath(_fotoUrl!, fit: BoxFit.cover);
+    }
+    if (_fotoUrl != null && _fotoUrl!.isNotEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Text(
+            kIsWeb
+                ? 'Foto antiga (apenas no celular). Escolha uma imagem abaixo.'
+                : 'Carregando preview…',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: Colors.orange.shade800),
+          ),
+        ),
+      );
+    }
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(Icons.add_photo_alternate_outlined, size: 36, color: Colors.grey),
+        Text('Toque para adicionar foto', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+      ],
+    );
   }
 
   Future<void> _salvar() async {
     if (_nomeCtrl.text.trim().isEmpty) return;
     setState(() => _loading = true);
 
-    String? fotoFinal = _fotoUrl;
-    if (_fotoUrl != null &&
-        !_fotoUrl!.startsWith('http://') &&
-        !_fotoUrl!.startsWith('https://')) {
+    String? fotoFinal;
+    if (_fotoBytes != null) {
       fotoFinal = await uploadFotoBucket(
-        localPath: _fotoUrl!,
         pasta: 'produtos',
-        urlAtual: widget.produto?.fotoUrl,
+        bytes: _fotoBytes,
+        extension: _fotoExt,
+        urlAtual: _fotoRemotaExistente(),
+      );
+      if (fotoFinal == null && mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Falha ao enviar a foto. Confira login, bucket "fotos" e políticas no Supabase.',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    } else if (_isUrlRemota(_fotoUrl)) {
+      fotoFinal = _fotoUrl;
+    } else if (!kIsWeb && _fotoUrl != null && _fotoUrl!.isNotEmpty) {
+      fotoFinal = await uploadFotoBucket(
+        pasta: 'produtos',
+        localPath: _fotoUrl,
+        urlAtual: _fotoRemotaExistente(),
       );
       if (fotoFinal == null && mounted) {
         setState(() => _loading = false);
@@ -510,6 +582,8 @@ class _ProdutoSheetState extends State<_ProdutoSheet> {
         );
         return;
       }
+    } else {
+      fotoFinal = _fotoRemotaExistente();
     }
 
     final p = Produto(
@@ -549,18 +623,18 @@ class _ProdutoSheetState extends State<_ProdutoSheet> {
             height: 120, decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.grey.shade300)),
             clipBehavior: Clip.antiAlias,
-            child: _fotoUrl != null
-                ? Stack(fit: StackFit.expand, children: [
-                    imageWidgetFromPath(_fotoUrl!, fit: BoxFit.cover),
-                    Positioned(bottom: 6, right: 6,
-                      child: Container(padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(6)),
-                        child: const Icon(Icons.edit, color: Colors.white, size: 14))),
-                  ])
-                : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    const Icon(Icons.add_photo_alternate_outlined, size: 36, color: Colors.grey),
-                    Text('Toque para adicionar foto', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
-                  ]),
+            child: Stack(fit: StackFit.expand, children: [
+              _previewFoto(),
+              Positioned(
+                bottom: 6,
+                right: 6,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(6)),
+                  child: const Icon(Icons.edit, color: Colors.white, size: 14),
+                ),
+              ),
+            ]),
           ),
         ),
         const SizedBox(height: 12),

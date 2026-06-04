@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -6,27 +7,38 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'supabase_service.dart';
 
 Future<String?> uploadFotoBucket({
-  required String localPath,
   required String pasta,
+  String? localPath,
+  Uint8List? bytes,
+  String extension = 'jpg',
   String? urlAtual,
 }) async {
-  if (localPath.startsWith('http')) return localPath;
+  if (localPath != null &&
+      (localPath.startsWith('http://') || localPath.startsWith('https://'))) {
+    return localPath;
+  }
 
-  final file = File(localPath);
-  if (!await file.exists()) return urlAtual;
-
-  final ext = _extensao(localPath);
+  final ext = extension == 'jpeg' ? 'jpg' : extension;
   final storagePath = '$pasta/${DateTime.now().millisecondsSinceEpoch}.$ext';
 
   try {
-    await supabase.storage.from('fotos').upload(
-      storagePath,
-      file,
-      fileOptions: FileOptions(
-        upsert: true,
-        contentType: _mime(ext),
-      ),
-    );
+    if (bytes != null && bytes.isNotEmpty) {
+      await supabase.storage.from('fotos').uploadBinary(
+        storagePath,
+        bytes,
+        fileOptions: FileOptions(upsert: true, contentType: _mime(ext)),
+      );
+    } else if (localPath != null) {
+      final file = File(localPath);
+      if (!await file.exists()) return urlAtual;
+      await supabase.storage.from('fotos').upload(
+        storagePath,
+        file,
+        fileOptions: FileOptions(upsert: true, contentType: _mime(ext)),
+      );
+    } else {
+      return urlAtual;
+    }
     return supabase.storage.from('fotos').getPublicUrl(storagePath);
   } catch (e) {
     debugPrint('uploadFotoBucket: $e');
@@ -43,10 +55,4 @@ String _mime(String ext) {
     default:
       return 'image/jpeg';
   }
-}
-
-String _extensao(String path) {
-  final p = path.split('.').last.toLowerCase();
-  if (p == 'jpg' || p == 'jpeg' || p == 'png' || p == 'webp') return p == 'jpeg' ? 'jpg' : p;
-  return 'jpg';
 }
