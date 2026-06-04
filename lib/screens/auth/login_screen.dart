@@ -5,6 +5,7 @@ import '../../core/auth/auth_provider.dart';
 import '../../core/auth/auth_result.dart';
 import '../../core/auth/biometric_auth_service.dart';
 import '../../core/auth/credential_remember_service.dart';
+import '../../core/app_version.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
 import 'criar_conta_screen.dart';
@@ -385,7 +386,7 @@ class _LoginScreenState extends State<LoginScreen> {
           border: Border.all(color: cor.withValues(alpha: 0.35)),
         ),
         child: Text(
-          '$label · v$appVersion (b$appBuild)',
+          '$label · ${AppVersion.label}',
           style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: cor),
         ),
       ),
@@ -582,7 +583,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.black87),
                           ),
                           Text(
-                            'v$appVersion',
+                            AppVersion.short,
                             style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
                           ),
                         ],

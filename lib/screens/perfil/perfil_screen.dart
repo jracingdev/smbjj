@@ -6,6 +6,7 @@ import '../../core/app_platform.dart';
 import '../../core/auth/auth_provider.dart';
 import '../../core/auth/biometric_auth_service.dart';
 import '../../core/backup/drive_backup.dart';
+import '../../core/app_version.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../models/aluno.dart';
@@ -419,7 +420,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SobreScreen())),
                 leading: const Icon(Icons.info_outline, color: verdeEscuro),
                 title: const Text('Sobre o App'),
-                subtitle: Text('v$appVersion · $developerNome', style: const TextStyle(fontSize: 11)),
+                subtitle: Text('${AppVersion.label} · $developerNome', style: const TextStyle(fontSize: 11)),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 tileColor: Colors.white,

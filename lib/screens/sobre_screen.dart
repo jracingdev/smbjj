@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../core/app_version.dart';
 import '../core/constants.dart';
 import '../core/theme.dart';
 import '../widgets/gft_logo_image.dart';
@@ -30,7 +31,7 @@ class SobreScreen extends StatelessWidget {
           Text('Academia de Jiu-Jitsu · desde $academiaFundacao',
               style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
           const SizedBox(height: 6),
-          Text('Versão $appVersion (build $appBuild)',
+          Text('Versão ${AppVersion.version} (build ${AppVersion.build})',
               style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
 
           const SizedBox(height: 24),
