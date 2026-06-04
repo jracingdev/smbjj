@@ -1,5 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../utils/image_utils.dart';
+import '../../utils/aluno_foto_util.dart';
 import '../../core/auth/auth_provider.dart';
 import '../../core/auth/biometric_auth_service.dart';
 import '../../core/backup/drive_backup.dart';
@@ -34,6 +36,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
   List<Turma> _turmas = [];
   bool _loading = true;
   bool _backupLoading = false;
+  bool _fotoLoading = false;
 
   @override
   void initState() { super.initState(); _load(); }
@@ -72,6 +75,90 @@ class _PerfilScreenState extends State<PerfilScreen> {
         ));
       }
     }
+  }
+
+  Future<void> _alterarFotoAluno() async {
+    if (_aluno == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Complete seu cadastro na academia antes de adicionar a foto.'),
+          backgroundColor: verdeEscuro,
+        ),
+      );
+      await Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const MeuCadastroScreen(editar: true)),
+      );
+      if (!mounted) return;
+      await context.read<AuthProvider>().recarregarAluno();
+      _load();
+      return;
+    }
+
+    setState(() => _fotoLoading = true);
+    try {
+      final url = await escolherEEnviarFotoAluno(
+        context: context,
+        alunoId: _aluno!.id,
+        fotoUrlAtual: _aluno!.fotoUrl,
+      );
+      if (!mounted) return;
+      if (url == null) {
+        setState(() => _fotoLoading = false);
+        return;
+      }
+      await _alunoRepo.atualizar(_aluno!.copyWith(fotoUrl: url));
+      await context.read<AuthProvider>().recarregarAluno();
+      if (mounted) {
+        await _load();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Foto atualizada!'), backgroundColor: verdeEscuro),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Não foi possível salvar a foto. Tente novamente.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _fotoLoading = false);
+    }
+  }
+
+  Widget _avatarPerfil(String nome) {
+    const radius = 40.0;
+    if (_fotoLoading) {
+      return const CircleAvatar(
+        radius: radius,
+        backgroundColor: Colors.white24,
+        child: SizedBox(
+          width: 28,
+          height: 28,
+          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+        ),
+      );
+    }
+    final url = _aluno?.fotoUrl;
+    if (fotoAlunoExibivel(url) && url!.startsWith('http')) {
+      return CircleAvatar(
+        radius: radius,
+        backgroundColor: Colors.white24,
+        backgroundImage: imageProviderFromPath(url),
+        onBackgroundImageError: (_, __) {},
+      );
+    }
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: Colors.white24,
+      child: Text(
+        nome.isNotEmpty ? nome[0].toUpperCase() : '?',
+        style: const TextStyle(fontSize: 34, fontWeight: FontWeight.bold, color: Colors.white),
+      ),
+    );
   }
 
   Future<void> _restaurar() async {
@@ -161,34 +248,23 @@ class _PerfilScreenState extends State<PerfilScreen> {
                 decoration: BoxDecoration(color: verdeEscuro, borderRadius: BorderRadius.circular(16)),
                 child: Column(children: [
                   Stack(alignment: Alignment.bottomRight, children: [
-                    CircleAvatar(
-                      radius: 40,
-                      backgroundColor: Colors.white24,
-                      child: Text(
-                        (user?.nome ?? 'U')[0].toUpperCase(),
-                        style: const TextStyle(fontSize: 34, fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
-                    ),
                     GestureDetector(
-                      onTap: () async {
-                        await showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true,
-                          useSafeArea: true,
-                          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-                          builder: (_) => _EditarPerfilSheet(
-                            usuario: user!,
-                            onSaved: () { context.read<AuthProvider>().inicializar(); _load(); },
-                          ),
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle,
-                            border: Border.all(color: verdeEscuro, width: 2)),
-                        child: const Icon(Icons.edit, color: verdeEscuro, size: 14),
-                      ),
+                      onTap: isAdmin ? null : _alterarFotoAluno,
+                      child: _avatarPerfil(user?.nome ?? 'U'),
                     ),
+                    if (!isAdmin)
+                      GestureDetector(
+                        onTap: _fotoLoading ? null : _alterarFotoAluno,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: verdeEscuro, width: 2),
+                          ),
+                          child: const Icon(Icons.camera_alt, color: verdeEscuro, size: 14),
+                        ),
+                      ),
                   ]),
                   const SizedBox(height: 12),
                   Text(user?.nome ?? '', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.white)),

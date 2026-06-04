@@ -1,5 +1,9 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../core/storage_service.dart';
 import '../../utils/image_utils.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
@@ -25,6 +29,8 @@ class _AlunoFormScreenState extends State<AlunoFormScreen> {
   bool _loading = false;
   bool _buscandoCep = false;
   String? _fotoPath;
+  Uint8List? _fotoBytes;
+  String _fotoExt = 'jpg';
 
   late final _nomeCtrl = TextEditingController();
   late final _emailCtrl = TextEditingController();
@@ -77,16 +83,52 @@ class _AlunoFormScreenState extends State<AlunoFormScreen> {
     super.dispose();
   }
 
+  Future<void> _definirImagem(XFile img) async {
+    final bytes = await img.readAsBytes();
+    var ext = 'jpg';
+    final nome = img.name.toLowerCase();
+    if (nome.endsWith('.png')) ext = 'png';
+    if (nome.endsWith('.webp')) ext = 'webp';
+    setState(() {
+      _fotoBytes = bytes;
+      _fotoExt = ext;
+      _fotoPath = kIsWeb ? null : img.path;
+    });
+  }
+
   Future<void> _pickFoto() async {
     final picker = ImagePicker();
     final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (img != null) setState(() => _fotoPath = img.path);
+    if (img != null) await _definirImagem(img);
   }
 
   Future<void> _tirarFoto() async {
     final picker = ImagePicker();
     final img = await picker.pickImage(source: ImageSource.camera, imageQuality: 80);
-    if (img != null) setState(() => _fotoPath = img.path);
+    if (img != null) await _definirImagem(img);
+  }
+
+  Future<String?> _resolverFotoUrl(String alunoId) async {
+    if (_fotoBytes != null) {
+      return uploadFotoBucket(
+        pasta: 'alunos/$alunoId',
+        bytes: _fotoBytes,
+        extension: _fotoExt,
+        localPath: _fotoPath,
+        urlAtual: _fotoPath != null &&
+                (_fotoPath!.startsWith('http://') || _fotoPath!.startsWith('https://'))
+            ? _fotoPath
+            : null,
+      );
+    }
+    if (_fotoPath != null &&
+        (_fotoPath!.startsWith('http://') || _fotoPath!.startsWith('https://'))) {
+      return _fotoPath;
+    }
+    if (!kIsWeb && _fotoPath != null && _fotoPath!.isNotEmpty) {
+      return uploadFotoBucket(pasta: 'alunos/$alunoId', localPath: _fotoPath);
+    }
+    return _fotoPath;
   }
 
   Future<void> _buscarCep(String cep) async {
@@ -111,6 +153,14 @@ class _AlunoFormScreenState extends State<AlunoFormScreen> {
     }
   }
 
+  ImageProvider? get _fotoProvider {
+    if (_fotoBytes != null) return MemoryImage(_fotoBytes!);
+    if (_fotoPath != null && _fotoPath!.isNotEmpty) {
+      return imageProviderFromPath(_fotoPath!);
+    }
+    return null;
+  }
+
   String? _categoriaEtaria() {
     if (_nascCtrl.text.isEmpty) return null;
     return getCategoriaEtaria(_nascCtrl.text);
@@ -130,8 +180,19 @@ class _AlunoFormScreenState extends State<AlunoFormScreen> {
       return;
     }
     setState(() => _loading = true);
+    final id = widget.aluno?.id ?? _uuid.v4();
+    final fotoUrl = await _resolverFotoUrl(id);
+    if (_fotoBytes != null && fotoUrl == null) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Falha ao enviar a foto do aluno.'), backgroundColor: Colors.red),
+        );
+      }
+      return;
+    }
     final aluno = Aluno(
-      id: widget.aluno?.id ?? _uuid.v4(),
+      id: id,
       nome: _nomeCtrl.text.trim(),
       email: _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
       dataNascimento: isoNasc,
@@ -144,7 +205,7 @@ class _AlunoFormScreenState extends State<AlunoFormScreen> {
       estado: _estadoCtrl.text.trim().isEmpty ? null : _estadoCtrl.text.trim().toUpperCase(),
       cep: _cepCtrl.text.trim().isEmpty ? null : _cepCtrl.text.trim(),
       peso: _pesoCtrl.text.isEmpty ? null : double.tryParse(_pesoCtrl.text),
-      fotoUrl: _fotoPath,
+      fotoUrl: fotoUrl,
       faixa: _faixa,
       grau: _grau,
       ativo: _ativo,
@@ -185,10 +246,8 @@ class _AlunoFormScreenState extends State<AlunoFormScreen> {
               child: CircleAvatar(
                 radius: 52,
                 backgroundColor: Colors.grey.shade200,
-                backgroundImage: _fotoPath != null
-                    ? imageProviderFromPath(_fotoPath!)
-                    : null,
-                child: _fotoPath == null
+                backgroundImage: _fotoProvider,
+                child: _fotoProvider == null
                     ? const Icon(Icons.person, size: 52, color: Colors.grey)
                     : null,
               ),
@@ -362,7 +421,13 @@ class _AlunoFormScreenState extends State<AlunoFormScreen> {
           if (_fotoPath != null) ListTile(
             leading: const Icon(Icons.delete_outline, color: Colors.red),
             title: const Text('Remover foto', style: TextStyle(color: Colors.red)),
-            onTap: () { Navigator.pop(context); setState(() => _fotoPath = null); },
+            onTap: () {
+              Navigator.pop(context);
+              setState(() {
+                _fotoPath = null;
+                _fotoBytes = null;
+              });
+            },
           ),
         ]),
       ),
