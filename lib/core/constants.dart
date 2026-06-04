@@ -23,7 +23,7 @@ const String pixNome = 'Sandro Iraja';
 /// Build: --dart-define=GOOGLE_WEB_CLIENT_ID=xxxx.apps.googleusercontent.com
 const String googleWebClientIdEnv = String.fromEnvironment(
   'GOOGLE_WEB_CLIENT_ID',
-  defaultValue: '',
+  defaultValue: '276798866114-q4s5b17hfk4ftsu3ag5hht2gu9f273r6.apps.googleusercontent.com',
 );
 
 // Desenvolvedor
