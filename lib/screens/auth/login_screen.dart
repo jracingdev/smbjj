@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/auth/auth_provider.dart';
 import '../../core/auth/auth_result.dart';
 import '../../core/auth/biometric_auth_service.dart';
+import '../../core/auth/credential_remember_service.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
 import 'criar_conta_screen.dart';
@@ -23,27 +24,48 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _biometriaDisponivel = false;
   bool _biometriaHabilitada = false;
   bool _tentouBioAuto = false;
+  bool _lembrarSenha = false;
 
   @override
   void initState() {
     super.initState();
-    _carregarBiometria();
+    _carregarInicio();
   }
 
-  Future<void> _carregarBiometria() async {
+  Future<void> _carregarInicio() async {
+    final credSvc = CredentialRememberService.instance;
     final bio = BiometricAuthService.instance;
-    final disp = await bio.biometriaDisponivel;
-    final hab = await bio.habilitado;
+    final results = await Future.wait([
+      credSvc.lerCredenciaisSalvas(),
+      credSvc.lembrarAtivo,
+      bio.biometriaDisponivel,
+      bio.habilitado,
+    ]);
+    final creds = results[0] as ({String email, String senha})?;
+    final lembrar = results[1] as bool;
+    final disp = results[2] as bool;
+    final hab = results[3] as bool;
+
     if (mounted) {
       setState(() {
+        _lembrarSenha = lembrar;
         _biometriaDisponivel = disp;
         _biometriaHabilitada = hab;
+        if (creds != null) {
+          _emailCtrl.text = creds.email;
+          _senhaCtrl.text = creds.senha;
+        }
       });
     }
     if (hab && disp && !kIsWeb && mounted && !_tentouBioAuto) {
       _tentouBioAuto = true;
       WidgetsBinding.instance.addPostFrameCallback((_) => _loginBiometrico());
     }
+  }
+
+  Future<void> _recarregarBiometria() async {
+    final hab = await BiometricAuthService.instance.habilitado;
+    if (mounted) setState(() => _biometriaHabilitada = hab);
   }
 
   @override
@@ -74,7 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
     if (ativar == true) {
       await BiometricAuthService.instance.habilitar(email: email, senha: senha);
-      if (mounted) await _carregarBiometria();
+      if (mounted) await _recarregarBiometria();
     }
   }
 
@@ -91,6 +113,11 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!result.ok) {
         setState(() => _erro = result.message ?? 'Email ou senha incorretos.');
       } else {
+        await CredentialRememberService.instance.salvar(
+          lembrar: _lembrarSenha,
+          email: email,
+          senha: senha,
+        );
         await _oferecerBiometria(email, senha);
       }
     } finally {
@@ -227,27 +254,55 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  void _infoBiometriaWeb() {
+    showDialog<void>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Biometria no celular'),
+        content: const Text(
+          'No navegador a biometria não está disponível.\n\n'
+          '• Instale o app CT SM BJJ no Android e ative após o primeiro login com senha.\n'
+          '• Ou marque "Lembrar e-mail e senha" abaixo para entrar mais rápido na web.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Entendi')),
+        ],
+      ),
+    );
+  }
+
   Widget _secaoBiometria() {
     if (kIsWeb) {
-      return Container(
-        padding: const EdgeInsets.all(12),
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Material(
           color: Colors.blue.shade50,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.blue.shade100),
-        ),
-        child: Row(
-          children: [
-            Icon(Icons.fingerprint, color: Colors.blue.shade700),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Login por biometria: use o app instalado no celular Android.',
-                style: TextStyle(fontSize: 12, color: Colors.blue.shade900),
+          child: InkWell(
+            onTap: _loading ? null : _infoBiometriaWeb,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.fingerprint, color: Colors.blue.shade700),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Biometria: toque aqui — disponível no app Android',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.blue.shade900),
+                    ),
+                  ),
+                  Icon(Icons.info_outline, size: 18, color: Colors.blue.shade700),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       );
     }
@@ -440,6 +495,28 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         obscureText: true,
                         onSubmitted: (_) => _loading ? null : _loginSenha(),
+                      ),
+                      CheckboxListTile(
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        controlAffinity: ListTileControlAffinity.leading,
+                        value: _lembrarSenha,
+                        onChanged: _loading
+                            ? null
+                            : (v) async {
+                                setState(() => _lembrarSenha = v ?? false);
+                                if (v != true) {
+                                  await CredentialRememberService.instance.limpar();
+                                }
+                              },
+                        title: const Text(
+                          'Lembrar e-mail e senha',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                        ),
+                        subtitle: Text(
+                          'Preenche automaticamente na próxima vez',
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                        ),
                       ),
                       _linkEsqueciSenha(),
                       const SizedBox(height: 8),

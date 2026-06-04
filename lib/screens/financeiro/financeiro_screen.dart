@@ -57,28 +57,33 @@ class _FinanceiroScreenState extends State<FinanceiroScreen> with SingleTickerPr
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final token = await MercadoPagoService.instance.getAccessToken();
-    final turmas = await _turmaRepo.listar();
-    final mapTurma = <String, List<String>>{};
-    for (final t in turmas) {
-      mapTurma[t.id] = await _turmaRepo.alunoIdsPorTurma(t.id);
-    }
     final results = await Future.wait([
       _mensRepo.listar(mes: _mes, ano: _ano),
       _mensRepo.listar(ano: _ano),
       _alunoRepo.listar(ativo: true),
       _configRepo.obter(),
+      _turmaRepo.listar(),
+      _turmaRepo.alunoIdsPorTodasTurmas(),
+      MercadoPagoService.instance.getAccessToken(),
     ]);
-    if (mounted) setState(() {
-      _mensalidades = results[0] as List<Mensalidade>;
-      _mensalidadesAno = results[1] as List<Mensalidade>;
-      _alunos = results[2] as List<Aluno>;
-      _config = results[3] as FinanceiroConfig;
-      _turmas = turmas;
-      _alunoIdsPorTurma = mapTurma;
-      _mpConfigurado = token != null && token.isNotEmpty;
-      _loading = false;
-    });
+    if (mounted) {
+      final turmas = results[4] as List<Turma>;
+      var mapTurma = results[5] as Map<String, List<String>>;
+      for (final t in turmas) {
+        mapTurma.putIfAbsent(t.id, () => []);
+      }
+      final token = results[6] as String?;
+      setState(() {
+        _mensalidades = results[0] as List<Mensalidade>;
+        _mensalidadesAno = results[1] as List<Mensalidade>;
+        _alunos = results[2] as List<Aluno>;
+        _config = results[3] as FinanceiroConfig;
+        _turmas = turmas;
+        _alunoIdsPorTurma = mapTurma;
+        _mpConfigurado = token != null && token.isNotEmpty;
+        _loading = false;
+      });
+    }
   }
 
   List<Aluno> get _alunosCobranca =>

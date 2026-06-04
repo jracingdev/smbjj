@@ -39,11 +39,15 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> inicializar() async {
     _usuario = await AuthService.instance.recuperarSessao();
-    if (_usuario != null && !isAdmin) {
-      await _atualizarVinculoAluno();
-    }
     _carregando = false;
     notifyListeners();
+    if (_usuario != null && !isAdmin) {
+      _carregandoAluno = true;
+      notifyListeners();
+      await _atualizarVinculoAluno();
+      _carregandoAluno = false;
+      notifyListeners();
+    }
 
     AuthService.instance.authStateChanges.listen((data) async {
       final event = data.event;

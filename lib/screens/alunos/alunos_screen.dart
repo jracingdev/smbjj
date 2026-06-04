@@ -42,12 +42,14 @@ class AlunosScreenState extends State<AlunosScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
-    final lista = await _repo.listar();
-    final turmas = await _turmaRepo.listar();
-    final map = <String, List<Turma>>{};
-    for (final a in lista) {
-      map[a.id] = await _turmaRepo.turmasDoAluno(a.id);
-    }
+    final results = await Future.wait([
+      _repo.listar(),
+      _turmaRepo.listar(),
+      _turmaRepo.turmasPorTodosAlunos(),
+    ]);
+    final lista = results[0] as List<Aluno>;
+    final turmas = results[1] as List<Turma>;
+    final map = results[2] as Map<String, List<Turma>>;
     final qtdPendentes = lista.where((a) => !a.cadastroValidado).length;
     if (mounted) {
       setState(() {
