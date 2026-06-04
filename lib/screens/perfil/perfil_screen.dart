@@ -12,6 +12,7 @@ import '../../repositories/mensalidade_repository.dart';
 import '../../utils/bjj_utils.dart';
 import '../../widgets/faixa_badge.dart';
 import '../sobre_screen.dart';
+import '../../widgets/gft_logo_image.dart';
 import '../alunos/meu_cadastro_screen.dart';
 import '../../widgets/turmas_aluno_card.dart';
 import '../../repositories/turma_repository.dart';
@@ -301,8 +302,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
               Card(child: Padding(
                 padding: const EdgeInsets.all(14),
                 child: Column(children: [
-                  Image.asset('assets/images/gft_logo.png', height: 60,
-                    errorBuilder: (_, __, ___) => const Icon(Icons.verified_outlined, size: 40, color: verdeEscuro)),
+                  const GftLogoImage(height: 72),
                   const SizedBox(height: 8),
                   const Text(academiaCredenciada,
                       style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: verdeEscuro),

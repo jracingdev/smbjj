@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../core/constants.dart';
 import '../core/theme.dart';
+import '../widgets/gft_logo_image.dart';
 
 class SobreScreen extends StatelessWidget {
   const SobreScreen({super.key});
@@ -36,13 +37,7 @@ class SobreScreen extends StatelessWidget {
 
           // GFT Team
           _Card(child: Column(children: [
-            // Logo GFT
-            Image.asset('assets/images/gft_logo.png', height: 80,
-              errorBuilder: (_, __, ___) => Container(
-                height: 80, width: 140,
-                decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
-                child: const Center(child: Text('GFT', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900))),
-              )),
+            const GftLogoImage(height: 96),
             const SizedBox(height: 12),
             const Text('ACADEMIA CREDENCIADA', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, letterSpacing: 1)),
             const SizedBox(height: 4),
