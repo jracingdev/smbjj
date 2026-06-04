@@ -15,6 +15,7 @@ import '../../repositories/mensalidade_repository.dart';
 import '../../repositories/turma_repository.dart';
 import '../../utils/bjj_utils.dart';
 import '../../utils/whatsapp_utils.dart';
+import '../../widgets/cobranca_whatsapp_banner.dart';
 import 'financeiro_config_screen.dart';
 import 'mp_config_screen.dart';
 
@@ -156,6 +157,7 @@ class _FinanceiroScreenState extends State<FinanceiroScreen> with SingleTickerPr
                   mensalidades: _mensalidades,
                   mes: _mes,
                   ano: _ano,
+                  config: _config,
                   totalArrecadado: _totalArrecadado,
                   pendentes: _mensalidades.where((m) => m.status != 'pago').length,
                   valorAluno: _valorAluno,
@@ -511,6 +513,7 @@ class _MensalidadesTab extends StatelessWidget {
   final List<Aluno> alunos;
   final List<Mensalidade> mensalidades;
   final int mes, ano, pendentes;
+  final FinanceiroConfig config;
   final double totalArrecadado;
   final double Function(Aluno) valorAluno;
   final VoidCallback onRefresh;
@@ -521,6 +524,7 @@ class _MensalidadesTab extends StatelessWidget {
     required this.mensalidades,
     required this.mes,
     required this.ano,
+    required this.config,
     required this.totalArrecadado,
     required this.pendentes,
     required this.valorAluno,
@@ -580,6 +584,14 @@ class _MensalidadesTab extends StatelessWidget {
           ]),
         ]),
       ])),
+      CobrancaWhatsAppBanner(
+        mes: mes,
+        ano: ano,
+        diaVencimento: config.diaVencimento,
+        mensalidades: mensalidades,
+        alunos: alunos,
+        mesAtualSelecionado: mes == DateTime.now().month && ano == DateTime.now().year,
+      ),
       Expanded(child: mensalidades.isEmpty
           ? Center(child: Text('Nenhum registro para ${meses[mes - 1]}/$ano', style: TextStyle(color: Colors.grey.shade500)))
           : RefreshIndicator(onRefresh: () async => onRefresh(), child: ListView.separated(
@@ -590,11 +602,20 @@ class _MensalidadesTab extends StatelessWidget {
                 final m = mensalidades[i];
                 final aluno = alunos.firstWhere((a) => a.id == m.alunoId, orElse: () => Aluno(id: '', nome: m.alunoNome ?? '?'));
                 return _MensalidadeCard(
-                  mensalidade: m, aluno: aluno,
+                  mensalidade: m,
+                  aluno: aluno,
+                  diaVencimento: config.diaVencimento,
                   onPago: m.status != 'pago' ? () => marcarPago(m) : null,
                   onDesfazer: m.status == 'pago' ? () => desfazer(m) : null,
                   onDelete: () => deletar(m),
-                  onWhatsapp: (tipo) => enviarCobranca(tipo: tipo, aluno: aluno, mes: mes, ano: ano),
+                  onWhatsapp: (tipo) => enviarCobranca(
+                    tipo: tipo,
+                    aluno: aluno,
+                    mes: mes,
+                    ano: ano,
+                    valor: m.valor,
+                    diaVencimento: config.diaVencimento,
+                  ),
                 );
               },
             ))),
@@ -924,10 +945,19 @@ class _CobrancaAvulsaSheetState extends State<_CobrancaAvulsaSheet> {
 class _MensalidadeCard extends StatelessWidget {
   final Mensalidade mensalidade;
   final Aluno aluno;
+  final int diaVencimento;
   final VoidCallback? onPago, onDesfazer, onDelete;
   final Function(String) onWhatsapp;
 
-  const _MensalidadeCard({required this.mensalidade, required this.aluno, this.onPago, this.onDesfazer, required this.onDelete, required this.onWhatsapp});
+  const _MensalidadeCard({
+    required this.mensalidade,
+    required this.aluno,
+    required this.diaVencimento,
+    this.onPago,
+    this.onDesfazer,
+    required this.onDelete,
+    required this.onWhatsapp,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -963,10 +993,10 @@ class _MensalidadeCard extends StatelessWidget {
             onSelected: onWhatsapp,
             icon: Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: Colors.green.shade100, borderRadius: BorderRadius.circular(8)),
               child: const Icon(Icons.message, color: Colors.green, size: 18)),
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'aviso1', child: Text('Aviso (Dia 1)')),
-              PopupMenuItem(value: 'aviso5', child: Text('Lembrete (Dia 5)')),
-              PopupMenuItem(value: 'vencimento', child: Text('Vencimento (Dia 10)')),
+            itemBuilder: (_) => [
+              PopupMenuItem(value: 'aviso1', child: Text(labelTipoCobranca('aviso1', diaVencimento))),
+              PopupMenuItem(value: 'aviso5', child: Text(labelTipoCobranca('aviso5', diaVencimento))),
+              PopupMenuItem(value: 'vencimento', child: Text(labelTipoCobranca('vencimento', diaVencimento))),
             ],
           ),
           const SizedBox(width: 4),
