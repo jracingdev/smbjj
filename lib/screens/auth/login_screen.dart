@@ -378,13 +378,16 @@ class _LoginScreenState extends State<LoginScreen> {
       alignment: Alignment.centerLeft,
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: cor.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: cor.withValues(alpha: 0.35)),
         ),
-        child: Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: cor)),
+        child: Text(
+          '$label · v$appVersion (b$appBuild)',
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: cor),
+        ),
       ),
     );
   }

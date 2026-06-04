@@ -1,6 +1,7 @@
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../app_platform.dart';
 import '../supabase_service.dart';
 import 'oauth_config.dart';
 
@@ -8,8 +9,9 @@ import 'oauth_config.dart';
 class GoogleNativeSignIn {
   static bool _initialized = false;
 
+  /// Só no APK/IPA — na web quebra o boot se inicializar GoogleSignIn.
   static bool get disponivel =>
-      OAuthConfig.googleWebClientId.trim().isNotEmpty;
+      isNativeApp && OAuthConfig.googleWebClientId.trim().isNotEmpty;
 
   static Future<void> ensureInitialized() async {
     if (_initialized || !disponivel) return;
