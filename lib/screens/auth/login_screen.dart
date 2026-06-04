@@ -179,10 +179,20 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  void _biometriaNaoConfigurada() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Entre com e-mail e senha uma vez. Depois aceite "Ativar" no aviso para usar biometria.',
+        ),
+        backgroundColor: verdeEscuro,
+        duration: Duration(seconds: 5),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final mostrarBiometria = _biometriaDisponivel && _biometriaHabilitada;
-
     return Scaffold(
       body: Container(
         decoration: const BoxDecoration(
@@ -272,7 +282,52 @@ class _LoginScreenState extends State<LoginScreen> {
                         'Entrar',
                         style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.black87),
                       ),
-                      const SizedBox(height: 20),
+                      Text(
+                        'v$appVersion',
+                        style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                      ),
+                      const SizedBox(height: 16),
+                      if (_biometriaDisponivel) ...[
+                        if (_biometriaHabilitada)
+                          OutlinedButton.icon(
+                            onPressed: _loading ? null : _loginBiometrico,
+                            icon: const Icon(Icons.fingerprint, size: 26),
+                            label: const Text(
+                              'Entrar com biometria',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: verdeEscuro,
+                              side: const BorderSide(color: verdeEscuro, width: 1.5),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                          )
+                        else
+                          OutlinedButton.icon(
+                            onPressed: _loading ? null : _biometriaNaoConfigurada,
+                            icon: Icon(Icons.fingerprint, size: 26, color: Colors.grey.shade600),
+                            label: Text(
+                              'Biometria (ative após 1º login)',
+                              style: TextStyle(fontWeight: FontWeight.w600, color: Colors.grey.shade700),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              side: BorderSide(color: Colors.grey.shade300),
+                            ),
+                          ),
+                        const SizedBox(height: 16),
+                        Row(
+                          children: [
+                            Expanded(child: Divider(color: Colors.grey.shade300)),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 10),
+                              child: Text('ou e-mail', style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+                            ),
+                            Expanded(child: Divider(color: Colors.grey.shade300)),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                       if (_erro != null) ...[
                         Container(
                           padding: const EdgeInsets.all(12),
@@ -303,14 +358,34 @@ class _LoginScreenState extends State<LoginScreen> {
                         obscureText: true,
                         onSubmitted: (_) => _loading ? null : _loginSenha(),
                       ),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: TextButton(
-                          onPressed: _loading ? null : _esqueceuSenha,
-                          child: const Text('Esqueceu a senha?', style: TextStyle(fontSize: 13)),
+                      const SizedBox(height: 4),
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: _loading ? null : _esqueceuSenha,
+                          borderRadius: BorderRadius.circular(8),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.lock_reset, size: 18, color: verdeEscuro),
+                                const SizedBox(width: 6),
+                                const Text(
+                                  'Esqueceu a senha?',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: verdeEscuro,
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
                       ElevatedButton(
                         onPressed: _loading ? null : _loginSenha,
                         child: _loading
@@ -321,19 +396,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               )
                             : const Text('Entrar'),
                       ),
-                      if (mostrarBiometria) ...[
-                        const SizedBox(height: 12),
-                        OutlinedButton.icon(
-                          onPressed: _loading ? null : _loginBiometrico,
-                          icon: const Icon(Icons.fingerprint, size: 22),
-                          label: const Text('Entrar com biometria'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: verdeEscuro,
-                            side: BorderSide(color: Colors.grey.shade300),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                        ),
-                      ],
                       const SizedBox(height: 12),
                       Row(
                         children: [

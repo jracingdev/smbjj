@@ -27,9 +27,10 @@ class BiometricAuthService {
   Future<bool> get biometriaDisponivel async {
     if (kIsWeb) return false;
     try {
-      final supported = await dispositivoSuporta;
-      if (!supported) return false;
-      return await _localAuth.canCheckBiometrics || await _localAuth.isDeviceSupported();
+      if (!await dispositivoSuporta) return false;
+      final canCheck = await _localAuth.canCheckBiometrics;
+      final tipos = await _localAuth.getAvailableBiometrics();
+      return canCheck || tipos.isNotEmpty;
     } catch (e) {
       debugPrint('biometric canCheck: $e');
       return false;

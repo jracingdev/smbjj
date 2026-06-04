@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/auth/auth_provider.dart';
+import '../../core/auth/biometric_auth_service.dart';
 import '../../core/backup/drive_backup.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
@@ -333,6 +334,9 @@ class _PerfilScreenState extends State<PerfilScreen> {
               )),
               const SizedBox(height: 12),
 
+              const _BiometricSettingsCard(),
+              const SizedBox(height: 12),
+
               // ── Sobre o App ───────────────────────
               ListTile(
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SobreScreen())),
@@ -345,6 +349,72 @@ class _PerfilScreenState extends State<PerfilScreen> {
               ),
               const SizedBox(height: 20),
             ]),
+    );
+  }
+}
+
+class _BiometricSettingsCard extends StatefulWidget {
+  const _BiometricSettingsCard();
+
+  @override
+  State<_BiometricSettingsCard> createState() => _BiometricSettingsCardState();
+}
+
+class _BiometricSettingsCardState extends State<_BiometricSettingsCard> {
+  bool _disponivel = false;
+  bool _habilitado = false;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final bio = BiometricAuthService.instance;
+    final disp = await bio.biometriaDisponivel;
+    final hab = await bio.habilitado;
+    if (mounted) {
+      setState(() {
+        _disponivel = disp;
+        _habilitado = hab;
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading || !_disponivel) return const SizedBox.shrink();
+    return Card(
+      child: SwitchListTile(
+        secondary: const Icon(Icons.fingerprint, color: verdeEscuro),
+        title: const Text('Login com biometria', style: TextStyle(fontWeight: FontWeight.w600)),
+        subtitle: Text(
+          _habilitado
+              ? 'Ativo — use na tela de entrar'
+              : 'Saia, entre com e-mail/senha e aceite "Ativar"',
+          style: const TextStyle(fontSize: 12),
+        ),
+        value: _habilitado,
+        activeColor: verdeEscuro,
+        onChanged: (ligar) async {
+          if (!ligar) {
+            await BiometricAuthService.instance.desabilitar();
+            await _load();
+            return;
+          }
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Para ativar: saia da conta, entre com e-mail e senha e confirme no aviso.'),
+                backgroundColor: verdeEscuro,
+              ),
+            );
+          }
+        },
+      ),
     );
   }
 }
