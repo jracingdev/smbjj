@@ -42,7 +42,26 @@ class _LojaScreenState extends State<LojaScreen> {
     setState(() => _loading = true);
     final isAdmin = context.read<AuthProvider>().isAdmin;
     final lista = await _repo.listar(ativo: isAdmin ? null : true);
-    if (mounted) setState(() { _produtos = lista; _loading = false; });
+    if (mounted) {
+      setState(() { _produtos = lista; _loading = false; });
+      if (isAdmin) {
+        final fotosQuebradas = lista.where((p) {
+          final u = p.fotoUrl;
+          return u != null && u.isNotEmpty && !u.startsWith('http');
+        }).length;
+        if (fotosQuebradas > 0) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                '$fotosQuebradas produto(s) com foto antiga (path local). Edite e salve de novo para enviar ao Supabase.',
+              ),
+              duration: const Duration(seconds: 6),
+              backgroundColor: Colors.orange.shade800,
+            ),
+          );
+        }
+      }
+    }
   }
 
   List<Produto> get _filtrados => _produtos.where((p) => _filtroCategoria == 'todos' || p.categoria == _filtroCategoria).toList();

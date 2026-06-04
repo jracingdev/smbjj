@@ -15,7 +15,7 @@ Credenciais do app estão em `lib/core/supabase_service.dart` (chave publishable
 
 ## Versão atual
 
-**1.1.0** (build 2) — cadastro do aluno, validação pelo admin, turmas com dias da semana.
+**1.2.4** (build 9) — cadastro aluno, validação admin, turmas, biometria, loja com Storage, datas DD-MM-AAAA.
 
 ## Executar
 

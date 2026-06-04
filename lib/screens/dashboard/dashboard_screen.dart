@@ -21,7 +21,8 @@ import '../../repositories/turma_repository.dart';
 import '../../models/turma.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key});
+  final VoidCallback? onValidarPendentes;
+  const DashboardScreen({super.key, this.onValidarPendentes});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -130,8 +131,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         if (pendentesValidacao > 0)
           _AlertaBanner(
             icon: Icons.shield_outlined,
-            texto: '$pendentesValidacao cadastro(s) aguardando validação',
+            texto: '$pendentesValidacao cadastro(s) aguardando validação — toque para validar',
             cor: Colors.amber,
+            onTap: widget.onValidarPendentes,
           ),
 
         // Cards de stats
@@ -258,23 +260,34 @@ class _AlertaBanner extends StatelessWidget {
   final IconData icon;
   final String texto;
   final Color cor;
-  const _AlertaBanner({required this.icon, required this.texto, required this.cor});
+  final VoidCallback? onTap;
+  const _AlertaBanner({required this.icon, required this.texto, required this.cor, this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final child = Row(children: [
+      Icon(icon, color: cor, size: 20),
+      const SizedBox(width: 10),
+      Expanded(child: Text(texto, style: TextStyle(color: cor.shade700, fontWeight: FontWeight.w600, fontSize: 13))),
+      if (onTap != null) Icon(Icons.chevron_right, color: cor.shade700, size: 20),
+    ]);
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: cor.withOpacity(0.1),
         border: Border.all(color: cor.withOpacity(0.4)),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Row(children: [
-        Icon(icon, color: cor, size: 20),
-        const SizedBox(width: 10),
-        Expanded(child: Text(texto, style: TextStyle(color: cor.shade700, fontWeight: FontWeight.w600, fontSize: 13))),
-      ]),
+      child: onTap == null
+          ? Padding(padding: const EdgeInsets.all(12), child: child)
+          : Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(padding: const EdgeInsets.all(12), child: child),
+              ),
+            ),
     );
   }
 }

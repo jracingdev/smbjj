@@ -15,10 +15,10 @@ class AlunosScreen extends StatefulWidget {
   const AlunosScreen({super.key});
 
   @override
-  State<AlunosScreen> createState() => _AlunosScreenState();
+  AlunosScreenState createState() => AlunosScreenState();
 }
 
-class _AlunosScreenState extends State<AlunosScreen> {
+class AlunosScreenState extends State<AlunosScreen> {
   final _repo = AlunoRepository();
   final _turmaRepo = TurmaRepository();
   List<Aluno> _alunos = [];
@@ -29,6 +29,9 @@ class _AlunosScreenState extends State<AlunosScreen> {
   String _filtroFaixa = '';
   String _filtroStatus = 'ativo';
   String _filtroTurma = '';
+
+  /// Chamado pelo painel ou aba Alunos para exibir cadastros aguardando validação.
+  void filtrarPendentes() => setState(() => _filtroStatus = 'pendente');
 
   @override
   void initState() {
@@ -44,12 +47,17 @@ class _AlunosScreenState extends State<AlunosScreen> {
     for (final a in lista) {
       map[a.id] = await _turmaRepo.turmasDoAluno(a.id);
     }
+    final qtdPendentes = lista.where((a) => !a.cadastroValidado).length;
     if (mounted) {
       setState(() {
         _alunos = lista;
         _turmas = turmas;
         _turmasPorAluno = map;
         _loading = false;
+        // Cadastros novos ficam com ativo=false; filtro "Ativos" os escondia.
+        if (qtdPendentes > 0 && _filtroStatus == 'ativo') {
+          _filtroStatus = 'pendente';
+        }
       });
     }
   }
@@ -137,14 +145,25 @@ class _AlunosScreenState extends State<AlunosScreen> {
         children: [
           // Banner pendentes
           if (pendentes > 0)
-            Container(
+            Material(
               color: Colors.amber.shade50,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              child: Row(children: [
-                const Icon(Icons.shield_outlined, color: Colors.amber, size: 18),
-                const SizedBox(width: 8),
-                Text('$pendentes cadastro(s) aguardando validação', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-              ]),
+              child: InkWell(
+                onTap: filtrarPendentes,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  child: Row(children: [
+                    const Icon(Icons.shield_outlined, color: Colors.amber, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '$pendentes cadastro(s) aguardando validação — toque para ver',
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                      ),
+                    ),
+                    Icon(Icons.chevron_right, color: Colors.amber.shade800, size: 20),
+                  ]),
+                ),
+              ),
             ),
 
           // Filtros

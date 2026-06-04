@@ -18,14 +18,22 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _tabIndex = 0;
+  final _alunosKey = GlobalKey<AlunosScreenState>();
+
+  void _abrirAlunosPendentes() {
+    setState(() => _tabIndex = 1);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _alunosKey.currentState?.filtrarPendentes();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     final isAdmin = context.watch<AuthProvider>().isAdmin;
 
     final adminTabs = [
-      const DashboardScreen(),
-      const AlunosScreen(),
+      DashboardScreen(onValidarPendentes: _abrirAlunosPendentes),
+      AlunosScreen(key: _alunosKey),
       const FinanceiroScreen(),
       const LojaScreen(),
       const PerfilScreen(),

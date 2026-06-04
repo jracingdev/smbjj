@@ -219,6 +219,8 @@ drop policy if exists "Upload autenticado" on storage.objects;
 
 create policy "Fotos públicas" on storage.objects for select using (bucket_id = 'fotos');
 create policy "Upload autenticado" on storage.objects for insert with check (bucket_id = 'fotos' and auth.role() = 'authenticated');
+drop policy if exists "Update autenticado" on storage.objects;
+create policy "Update autenticado" on storage.objects for update using (bucket_id = 'fotos' and auth.role() = 'authenticated');
 
 -- ── Confirmação ──────────────────────────────────────────────
 select 'Setup concluído! Agora crie o usuário admin em Authentication → Users' as status;
