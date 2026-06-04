@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../utils/image_utils.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
@@ -8,6 +9,7 @@ import '../../core/theme.dart';
 import '../../models/aluno.dart';
 import '../../repositories/aluno_repository.dart';
 import '../../utils/bjj_utils.dart';
+import '../../utils/date_utils.dart';
 
 class AlunoFormScreen extends StatefulWidget {
   final Aluno? aluno;
@@ -56,7 +58,7 @@ class _AlunoFormScreenState extends State<AlunoFormScreen> {
       _estadoCtrl.text = a.estado ?? '';
       _cepCtrl.text = a.cep ?? '';
       _pesoCtrl.text = a.peso?.toString() ?? '';
-      _nascCtrl.text = a.dataNascimento ?? '';
+      _nascCtrl.text = formatDataNascimentoBr(a.dataNascimento);
       _sexo = a.sexo;
       _faixa = a.faixa;
       _grau = a.grau;
@@ -120,12 +122,19 @@ class _AlunoFormScreenState extends State<AlunoFormScreen> {
           const SnackBar(content: Text('Nome e data de nascimento são obrigatórios.')));
       return;
     }
+    final isoNasc = dataNascimentoParaIso(_nascCtrl.text);
+    if (isoNasc == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Data de nascimento inválida. Use DD-MM-AAAA.')),
+      );
+      return;
+    }
     setState(() => _loading = true);
     final aluno = Aluno(
       id: widget.aluno?.id ?? _uuid.v4(),
       nome: _nomeCtrl.text.trim(),
       email: _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
-      dataNascimento: _nascCtrl.text,
+      dataNascimento: isoNasc,
       sexo: _sexo,
       telefone: _telefoneCtrl.text.trim().isEmpty ? null : _telefoneCtrl.text.trim(),
       nomeResponsavel: _respNomeCtrl.text.trim().isEmpty ? null : _respNomeCtrl.text.trim(),
@@ -225,8 +234,16 @@ class _AlunoFormScreenState extends State<AlunoFormScreen> {
           _campo(_nomeCtrl, 'Nome Completo *'),
           _campo(_emailCtrl, 'Email', type: TextInputType.emailAddress),
           Row(children: [
-            Expanded(child: _campo(_nascCtrl, 'Nascimento *', hint: 'AAAA-MM-DD',
-                onChanged: (_) => setState(() {}))),
+            Expanded(
+              child: _campo(
+                _nascCtrl,
+                'Nascimento *',
+                hint: hintDataNascimento,
+                onChanged: (_) => setState(() {}),
+                inputFormatters: [DataNascimentoInputFormatter()],
+                type: TextInputType.number,
+              ),
+            ),
             const SizedBox(width: 12),
             Expanded(child: DropdownButtonFormField<String>(
               value: _sexo,
@@ -359,7 +376,11 @@ class _AlunoFormScreenState extends State<AlunoFormScreen> {
   );
 
   Widget _campo(TextEditingController ctrl, String label,
-      {TextInputType? type, String? hint, int? maxLength, ValueChanged<String>? onChanged}) =>
+      {TextInputType? type,
+      String? hint,
+      int? maxLength,
+      ValueChanged<String>? onChanged,
+      List<TextInputFormatter>? inputFormatters}) =>
       Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: TextField(
@@ -368,6 +389,7 @@ class _AlunoFormScreenState extends State<AlunoFormScreen> {
           keyboardType: type,
           maxLength: maxLength,
           onChanged: onChanged,
+          inputFormatters: inputFormatters,
         ),
       );
 }

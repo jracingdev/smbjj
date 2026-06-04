@@ -69,8 +69,8 @@ class _CriarContaScreenState extends State<CriarContaScreen> {
         return;
       }
 
-      if (result.ok) {
-        Navigator.of(context).popUntil((route) => route.isFirst);
+      if (result.sessaoIniciada) {
+        if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
         return;
       }
 

@@ -10,7 +10,8 @@ import '../../models/usuario.dart';
 import '../../repositories/aluno_repository.dart';
 import '../../repositories/mensalidade_repository.dart';
 import '../../utils/bjj_utils.dart';
-import '../../widgets/faixa_badge.dart';
+import '../../utils/date_utils.dart';
+import '../../widgets/faixa_ilustrada.dart';
 import '../sobre_screen.dart';
 import '../../widgets/gft_logo_image.dart';
 import '../alunos/meu_cadastro_screen.dart';
@@ -198,12 +199,24 @@ class _PerfilScreenState extends State<PerfilScreen> {
                     child: Text(isAdmin ? '👨‍🏫 Professor / Admin' : '🥋 Aluno',
                         style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
                   ),
-                  if (_aluno != null) ...[
+                  if (_aluno != null && _aluno!.cadastroValidado) ...[
                     const SizedBox(height: 12),
-                    FaixaBadge(faixa: _aluno!.faixa, grau: _aluno!.grau),
+                    FaixaIlustrada(
+                      faixa: _aluno!.faixa,
+                      grau: _aluno!.grau,
+                      largura: 160,
+                      corLegenda: Colors.white,
+                    ),
                     const SizedBox(height: 4),
-                    Text(getCategoriaEtaria(_aluno!.dataNascimento),
-                        style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                    Text(
+                      '${getCategoriaEtaria(_aluno!.dataNascimento)} · ${formatDataNascimentoBr(_aluno!.dataNascimento)}',
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                  ] else if (_aluno != null) ...[
+                    Text(
+                      '${getCategoriaEtaria(_aluno!.dataNascimento)} · ${formatDataNascimentoBr(_aluno!.dataNascimento)}',
+                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
                   ],
                 ]),
               ),

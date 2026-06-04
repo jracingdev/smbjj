@@ -175,9 +175,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildAluno() {
+    final aluno = context.watch<AuthProvider>().alunoVinculado;
+    final mostraFaixa = aluno != null && aluno.cadastroValidado;
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        if (mostraFaixa) ...[
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  const Text('Minha graduação', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
+                  const SizedBox(height: 12),
+                  FaixaBadge(faixa: aluno.faixa, grau: aluno.grau),
+                  const SizedBox(height: 8),
+                  Text(
+                    getCategoriaEtaria(aluno.dataNascimento),
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
         _SectionTitle('Minha Turma'),
         TurmasAlunoCard(turmas: _minhasTurmas),
         const SizedBox(height: 20),

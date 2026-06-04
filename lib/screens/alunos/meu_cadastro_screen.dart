@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'package:provider/provider.dart';
 import '../../core/auth/auth_provider.dart';
 import '../../core/theme.dart';
 import '../../models/aluno.dart';
 import '../../repositories/aluno_repository.dart';
 import '../../utils/bjj_utils.dart';
+import '../../utils/date_utils.dart';
+import '../../widgets/faixa_badge.dart';
+import '../../widgets/turmas_aluno_card.dart';
+import '../../repositories/turma_repository.dart';
+import '../../models/turma.dart';
 
 class MeuCadastroScreen extends StatefulWidget {
   final bool editar;
@@ -17,6 +25,9 @@ class MeuCadastroScreen extends StatefulWidget {
 class _MeuCadastroScreenState extends State<MeuCadastroScreen> {
   final _repo = AlunoRepository();
   bool _loading = false;
+  bool _buscandoCep = false;
+  bool _dadosPreenchidos = false;
+  List<Turma> _turmas = [];
 
   late final _nomeCtrl = TextEditingController();
   late final _emailCtrl = TextEditingController();
@@ -34,9 +45,12 @@ class _MeuCadastroScreenState extends State<MeuCadastroScreen> {
   Aluno? _existente;
 
   @override
-  void initState() {
-    super.initState();
-    _preencher();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_dadosPreenchidos) {
+      _preencher();
+      _dadosPreenchidos = true;
+    }
   }
 
   void _preencher() {
@@ -54,8 +68,36 @@ class _MeuCadastroScreenState extends State<MeuCadastroScreen> {
     _estadoCtrl.text = aluno?.estado ?? '';
     _cepCtrl.text = aluno?.cep ?? '';
     _pesoCtrl.text = aluno?.peso?.toString() ?? '';
-    _nascCtrl.text = aluno?.dataNascimento ?? '';
+    _nascCtrl.text = formatDataNascimentoBr(aluno?.dataNascimento);
     if (aluno != null) _sexo = aluno.sexo;
+    if (aluno != null && aluno.cadastroValidado) {
+      TurmaRepository().turmasDoAluno(aluno.id).then((t) {
+        if (mounted) setState(() => _turmas = t);
+      });
+    }
+  }
+
+  Future<void> _buscarCep(String cep) async {
+    final numeros = cep.replaceAll(RegExp(r'\D'), '');
+    if (numeros.length != 8) return;
+    setState(() => _buscandoCep = true);
+    try {
+      final res = await http.get(Uri.parse('https://viacep.com.br/ws/$numeros/json/'))
+          .timeout(const Duration(seconds: 8));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        if (data['erro'] != true) {
+          setState(() {
+            _enderecoCtrl.text =
+                '${data['logradouro'] ?? ''}, ${data['bairro'] ?? ''}'.trim().replaceAll(RegExp(r'^,\s*|,\s*$'), '');
+            _cidadeCtrl.text = data['localidade'] ?? '';
+            _estadoCtrl.text = data['uf'] ?? '';
+          });
+        }
+      }
+    } catch (_) {} finally {
+      if (mounted) setState(() => _buscandoCep = false);
+    }
   }
 
   @override
@@ -80,7 +122,15 @@ class _MeuCadastroScreenState extends State<MeuCadastroScreen> {
       return;
     }
 
-    final idade = calcularIdadeCBJJ(_nascCtrl.text);
+    final isoNasc = dataNascimentoParaIso(_nascCtrl.text);
+    if (isoNasc == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Data de nascimento inválida. Use DD-MM-AAAA.')),
+      );
+      return;
+    }
+
+    final idade = calcularIdadeCBJJ(isoNasc);
     if (idade != null && idade < 18) {
       if (_respNomeCtrl.text.trim().isEmpty || _respTelCtrl.text.trim().isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -98,7 +148,7 @@ class _MeuCadastroScreenState extends State<MeuCadastroScreen> {
       id: _existente?.id ?? '',
       nome: _nomeCtrl.text.trim(),
       email: _emailCtrl.text.trim().isEmpty ? user.email : _emailCtrl.text.trim(),
-      dataNascimento: _nascCtrl.text,
+      dataNascimento: isoNasc,
       sexo: _sexo,
       telefone: _telefoneCtrl.text.trim(),
       nomeResponsavel: _respNomeCtrl.text.trim().isEmpty ? null : _respNomeCtrl.text.trim(),
@@ -110,8 +160,8 @@ class _MeuCadastroScreenState extends State<MeuCadastroScreen> {
       peso: _pesoCtrl.text.isEmpty ? null : double.tryParse(_pesoCtrl.text),
       faixa: _existente?.faixa ?? 'branca',
       grau: _existente?.grau ?? 0,
-      ativo: false,
-      cadastroValidado: false,
+      ativo: _existente?.ativo ?? false,
+      cadastroValidado: _existente?.cadastroValidado ?? false,
       createdAt: _existente?.createdAt,
     );
 
@@ -146,11 +196,16 @@ class _MeuCadastroScreenState extends State<MeuCadastroScreen> {
   @override
   Widget build(BuildContext context) {
     final categoria = _nascCtrl.text.isEmpty ? null : getCategoriaEtaria(_nascCtrl.text);
+    final idade = calcularIdadeCBJJ(_nascCtrl.text);
     final podeVoltar = widget.editar;
+    final validado = _existente?.cadastroValidado == true;
+    final mostraGraduacao = validado && (_existente!.faixa.isNotEmpty);
 
-    return Scaffold(
+    return PopScope(
+      canPop: podeVoltar,
+      child: Scaffold(
       appBar: AppBar(
-        title: Text(widget.editar ? 'Meu Cadastro' : 'Complete seu Cadastro'),
+        title: Text(widget.editar ? 'Meu Cadastro' : 'Cadastro na Academia'),
         automaticallyImplyLeading: podeVoltar,
       ),
       body: SingleChildScrollView(
@@ -167,9 +222,20 @@ class _MeuCadastroScreenState extends State<MeuCadastroScreen> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.blue.shade100),
                 ),
-                child: const Text(
-                  'Bem-vindo ao SM BJJ! Preencha seus dados para o professor validar e definir sua turma.',
-                  style: TextStyle(fontSize: 13),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Primeiro acesso',
+                      style: TextStyle(fontWeight: FontWeight.w800, color: Colors.blue.shade900, fontSize: 14),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Preencha seus dados para o professor validar e definir sua turma. '
+                      'Faixa e turmas são definidas pelo professor após a validação.',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                  ],
                 ),
               ),
             if (categoria != null)
@@ -179,13 +245,63 @@ class _MeuCadastroScreenState extends State<MeuCadastroScreen> {
                 decoration: BoxDecoration(
                   color: Colors.green.shade50,
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.green.shade200),
                 ),
-                child: Text('Categoria: $categoria', style: const TextStyle(fontWeight: FontWeight.bold)),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Categoria etária (CBJJ)',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.green)),
+                        Text(categoria, style: const TextStyle(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    if (idade != null)
+                      Text('$idade anos',
+                          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.green)),
+                  ],
+                ),
               ),
+            if (mostraGraduacao) ...[
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Column(
+                  children: [
+                    const Text('Graduação (definida pelo professor)',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.black54)),
+                    const SizedBox(height: 10),
+                    FaixaBadge(faixa: _existente!.faixa, grau: _existente!.grau),
+                  ],
+                ),
+              ),
+              if (_turmas.isNotEmpty) ...[
+                const Text('Minhas turmas', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                const SizedBox(height: 8),
+                TurmasAlunoCard(turmas: _turmas),
+                const SizedBox(height: 16),
+              ],
+            ],
             _campo(_nomeCtrl, 'Nome Completo *'),
             _campo(_emailCtrl, 'Email', type: TextInputType.emailAddress, readOnly: true),
             Row(children: [
-              Expanded(child: _campo(_nascCtrl, 'Nascimento *', hint: 'AAAA-MM-DD', onChanged: (_) => setState(() {}))),
+              Expanded(
+                child: _campo(
+                  _nascCtrl,
+                  'Nascimento *',
+                  hint: hintDataNascimento,
+                  onChanged: (_) => setState(() {}),
+                  inputFormatters: [DataNascimentoInputFormatter()],
+                  type: TextInputType.number,
+                ),
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: DropdownButtonFormField<String>(
@@ -211,14 +327,36 @@ class _MeuCadastroScreenState extends State<MeuCadastroScreen> {
               padding: EdgeInsets.only(top: 16, bottom: 8),
               child: Text('Endereço', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
             ),
-            _campo(_enderecoCtrl, 'Rua, Número, Bairro'),
             Row(children: [
-              Expanded(flex: 3, child: _campo(_cidadeCtrl, 'Cidade *')),
+              Expanded(
+                flex: 2,
+                child: TextField(
+                  controller: _cepCtrl,
+                  decoration: InputDecoration(
+                    labelText: 'CEP',
+                    hintText: '00000-000',
+                    suffixIcon: _buscandoCep
+                        ? const Padding(
+                            padding: EdgeInsets.all(12),
+                            child: SizedBox(
+                                width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: verdeEscuro)))
+                        : IconButton(
+                            icon: const Icon(Icons.search, color: verdeEscuro),
+                            onPressed: () => _buscarCep(_cepCtrl.text),
+                          ),
+                  ),
+                  keyboardType: TextInputType.number,
+                  onChanged: (v) {
+                    if (v.replaceAll(RegExp(r'\D'), '').length == 8) _buscarCep(v);
+                  },
+                ),
+              ),
               const SizedBox(width: 10),
               Expanded(child: _campo(_estadoCtrl, 'UF', maxLength: 2)),
-              const SizedBox(width: 10),
-              Expanded(flex: 2, child: _campo(_cepCtrl, 'CEP')),
             ]),
+            const SizedBox(height: 12),
+            _campo(_enderecoCtrl, 'Rua, Número, Bairro'),
+            _campo(_cidadeCtrl, 'Cidade *'),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _loading ? null : _salvar,
@@ -229,6 +367,7 @@ class _MeuCadastroScreenState extends State<MeuCadastroScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 
@@ -240,16 +379,18 @@ class _MeuCadastroScreenState extends State<MeuCadastroScreen> {
     int? maxLength,
     bool readOnly = false,
     ValueChanged<String>? onChanged,
+    List<TextInputFormatter>? inputFormatters,
   }) =>
       Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: TextField(
           controller: ctrl,
           readOnly: readOnly,
-          decoration: InputDecoration(labelText: label, hintText: hint),
+          decoration: InputDecoration(labelText: label, hintText: hint, counterText: ''),
           keyboardType: type,
           maxLength: maxLength,
           onChanged: onChanged,
+          inputFormatters: inputFormatters,
         ),
       );
 }

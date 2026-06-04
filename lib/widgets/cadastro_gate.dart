@@ -5,7 +5,7 @@ import '../core/theme.dart';
 import '../screens/alunos/meu_cadastro_screen.dart';
 import '../screens/main_screen.dart';
 
-/// Redireciona aluno sem cadastro completo para a tela de preenchimento.
+/// Após login, aluno sem cadastro na academia vê o formulário obrigatório.
 class CadastroGate extends StatelessWidget {
   const CadastroGate({super.key});
 
@@ -13,10 +13,31 @@ class CadastroGate extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AuthProvider>(
       builder: (context, auth, _) {
+        if (auth.carregando || auth.carregandoAluno) {
+          return const Scaffold(
+            backgroundColor: verdeEscuro,
+            body: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(color: Colors.white),
+                  SizedBox(height: 16),
+                  Text(
+                    'Carregando seu perfil...',
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
         if (auth.isAdmin) return const MainScreen();
+
         if (auth.precisaCompletarCadastro) {
           return const MeuCadastroScreen();
         }
+
         return const MainScreen();
       },
     );
@@ -60,7 +81,7 @@ class BannerAguardandoValidacao extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'O professor irá validar seus dados e definir sua turma. Você será avisado quando estiver ativo.',
+                  'O professor irá validar seus dados e definir sua turma.',
                   style: TextStyle(fontSize: 12, color: Colors.amber.shade900.withValues(alpha: 0.85)),
                 ),
                 TextButton(

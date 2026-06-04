@@ -201,6 +201,28 @@ class AuthService {
     await supabase.auth.updateUser(UserAttributes(password: novaSenha));
   }
 
+  Future<AuthResult> recuperarSenha(String email) async {
+    final e = email.trim();
+    if (e.isEmpty || !e.contains('@')) {
+      return const AuthResult(status: AuthStatus.error, message: 'Informe um e-mail válido.');
+    }
+    try {
+      await supabase.auth.resetPasswordForEmail(e);
+      return const AuthResult(
+        status: AuthStatus.success,
+        message: 'Link enviado! Abra o e-mail para definir uma nova senha.',
+      );
+    } on AuthException catch (ex) {
+      return AuthResult(status: AuthStatus.error, message: _mensagemAuth(ex));
+    } catch (e) {
+      debugPrint('recuperarSenha: $e');
+      return const AuthResult(
+        status: AuthStatus.error,
+        message: 'Não foi possível enviar o e-mail. Tente novamente.',
+      );
+    }
+  }
+
   Future<void> vincularAluno(String userId, String alunoId) async {
     await supabase.from('usuarios').update({'aluno_id': alunoId}).eq('id', userId);
   }

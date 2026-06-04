@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'date_utils.dart';
+
 const List<String> faixas = [
   'branca', 'cinza', 'amarela', 'laranja', 'verde',
   'azul', 'roxa', 'marrom', 'preta',
@@ -14,13 +16,14 @@ const double valorMenor = 80.0;
 const double valorCheio = 110.0;
 
 int? calcularIdadeCBJJ(String? dataNascimento) {
-  if (dataNascimento == null || dataNascimento.isEmpty) return null;
-  try {
-    final nasc = DateTime.parse(dataNascimento);
-    return DateTime.now().year - nasc.year;
-  } catch (_) {
-    return null;
+  final nasc = parseDataNascimento(dataNascimento);
+  if (nasc == null) return null;
+  final hoje = DateTime.now();
+  var idade = hoje.year - nasc.year;
+  if (hoje.month < nasc.month || (hoje.month == nasc.month && hoje.day < nasc.day)) {
+    idade--;
   }
+  return idade;
 }
 
 String getCategoriaEtaria(String? dataNascimento) {

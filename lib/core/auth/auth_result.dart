@@ -17,5 +17,7 @@ class AuthResult {
     this.message,
   });
 
-  bool get ok => status == AuthStatus.success && usuario != null;
+  bool get ok => status == AuthStatus.success;
+
+  bool get sessaoIniciada => status == AuthStatus.success && usuario != null;
 }

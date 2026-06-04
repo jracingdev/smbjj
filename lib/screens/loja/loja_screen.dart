@@ -8,6 +8,7 @@ import '../../core/auth/auth_provider.dart';
 import '../../core/theme.dart';
 import '../../models/pedido.dart';
 import '../../models/produto.dart';
+import '../../core/storage_service.dart';
 import '../../repositories/pedido_repository.dart';
 import '../../repositories/produto_repository.dart';
 import 'pedidos_admin_screen.dart';
@@ -374,6 +375,14 @@ class _ProdutoImagem extends StatelessWidget {
     final path = fotoUrl?.isNotEmpty == true ? fotoUrl : null;
 
     if (path != null) {
+      final remote = path.startsWith('http://') || path.startsWith('https://');
+      if (remote) {
+        return Image.network(
+          path,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _fallbackYoutube(youtubeThumb),
+        );
+      }
       return imageWidgetFromPath(path, fit: BoxFit.cover, errorWidget: _fallbackYoutube(youtubeThumb));
     }
 
@@ -462,13 +471,35 @@ class _ProdutoSheetState extends State<_ProdutoSheet> {
   Future<void> _salvar() async {
     if (_nomeCtrl.text.trim().isEmpty) return;
     setState(() => _loading = true);
+
+    String? fotoFinal = _fotoUrl;
+    if (_fotoUrl != null &&
+        !_fotoUrl!.startsWith('http://') &&
+        !_fotoUrl!.startsWith('https://')) {
+      fotoFinal = await uploadFotoBucket(
+        localPath: _fotoUrl!,
+        pasta: 'produtos',
+        urlAtual: widget.produto?.fotoUrl,
+      );
+      if (fotoFinal == null && mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Falha ao enviar a foto. Verifique conexão e permissões no Supabase.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    }
+
     final p = Produto(
       id: widget.produto?.id ?? _uuid.v4(),
       nome: _nomeCtrl.text.trim(),
       categoria: _categoria,
       descricao: _descCtrl.text.isEmpty ? null : _descCtrl.text,
       preco: double.tryParse(_precoCtrl.text.replaceAll(',', '.')) ?? 0,
-      fotoUrl: _fotoUrl,
+      fotoUrl: fotoFinal,
       youtubeUrl: _youtubeCtrl.text.trim().isEmpty ? null : _youtubeCtrl.text.trim(),
       prazoEntrega: _prazoEntrega,
       prazoDias: int.tryParse(_prazoDiasCtrl.text) ?? 0,
