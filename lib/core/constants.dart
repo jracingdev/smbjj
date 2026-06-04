@@ -2,8 +2,8 @@
 // CT SM BJJ — Constantes do App
 // ============================================================
 
-const String appVersion = '1.3.9';
-const String appBuild = '24';
+const String appVersion = '1.4.0';
+const String appBuild = '25';
 const String appName = 'CT SM BJJ';
 
 // Academia
