@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/aluno.dart';
 import 'bjj_utils.dart';
+import 'date_utils.dart';
 
 /// Tipo de mensagem de cobrança conforme o dia do mês.
 String? tipoCobrancaDoDia(int diaHoje, int diaVencimento, {List<int> diasExtras = const []}) {
@@ -35,35 +36,35 @@ String _buildMessage({
   required double valor,
   required int diaVencimento,
 }) {
-  final mesNome = meses[mes - 1];
+  final mesAno = formatMesAnoPartes(mes, ano);
   final nome = aluno.nomeResponsavel ?? aluno.nome;
   final valorStr = valor.toStringAsFixed(2);
 
   switch (tipo) {
     case 'aviso1':
       return 'Olá, $nome! 😊\n\n'
-          'Passando para lembrar que a mensalidade de *$mesNome/$ano* da SM BJJ está chegando! 🥋\n\n'
-          'O vencimento é dia *$diaVencimento de $mesNome*.\n'
+          'Passando para lembrar que a mensalidade de *$mesAno* da SM BJJ está chegando! 🥋\n\n'
+          'O vencimento é dia *$diaVencimento*.\n'
           'Valor: *R\$ $valorStr*\n\n'
           'Qualquer dúvida, estamos à disposição! 💪';
 
     case 'aviso5':
       final diasRestantes = (diaVencimento - 5).clamp(1, 31);
       return 'Olá, $nome! 👋\n\n'
-          'Só um lembrete rápido: a mensalidade de *$mesNome/$ano* vence em *$diasRestantes dias* (dia $diaVencimento).\n\n'
+          'Só um lembrete rápido: a mensalidade de *$mesAno* vence em *$diasRestantes dias* (dia $diaVencimento).\n\n'
           'Valor: *R\$ $valorStr*\n\n'
           'Evite o atraso e garanta sua continuidade nas aulas! 🥋✨';
 
     case 'aviso_extra':
       return 'Olá, $nome! 👋\n\n'
-          'Lembrete da SM BJJ: mensalidade de *$mesNome/$ano*.\n'
+          'Lembrete da SM BJJ: mensalidade de *$mesAno*.\n'
           'Vencimento dia *$diaVencimento*.\n'
           'Valor: *R\$ $valorStr*\n\n'
           'Qualquer dúvida, fale conosco! 🥋';
 
     case 'vencimento':
       return 'Olá, $nome! ⚠️\n\n'
-          'Hoje é o *dia do vencimento* da mensalidade de *$mesNome/$ano* da SM BJJ.\n\n'
+          'Hoje é o *dia do vencimento* da mensalidade de *$mesAno* da SM BJJ.\n\n'
           'Valor: *R\$ $valorStr*\n\n'
           '⚠️ *Atenção:* O pagamento após o vencimento resultará na '
           '*perda da promoção naquele mês*.\n\n'

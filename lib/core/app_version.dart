@@ -1,16 +1,10 @@
-import 'package:package_info_plus/package_info_plus.dart';
+import 'constants.dart';
 
-/// Versão exibida na UI = mesma do APK (`pubspec.yaml`), não constante manual.
+/// Versão exibida na UI — valores compilados em [constants.dart] / pubspec.yaml.
 class AppVersion {
-  static String version = '—';
-  static String build = '—';
-
-  static String get label => 'v$version (b$build)';
-  static String get short => 'v$version';
-
-  static Future<void> init() async {
-    final info = await PackageInfo.fromPlatform();
-    version = info.version;
-    build = info.buildNumber;
-  }
+  static String get version => appVersion;
+  static String get build => appBuild;
+  static String get label => 'v$appVersion (b$appBuild)';
+  static String get short => 'v$appVersion';
+  static String get packageName => 'com.smbijj.ct_sm_bjj';
 }

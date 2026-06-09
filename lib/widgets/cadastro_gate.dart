@@ -1,13 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/auth/auth_provider.dart';
+import '../core/presenca/checkin_handler.dart';
 import '../core/theme.dart';
 import '../screens/alunos/meu_cadastro_screen.dart';
 import '../screens/main_screen.dart';
 
 /// Após login, aluno sem cadastro na academia vê o formulário obrigatório.
-class CadastroGate extends StatelessWidget {
+class CadastroGate extends StatefulWidget {
   const CadastroGate({super.key});
+
+  @override
+  State<CadastroGate> createState() => _CadastroGateState();
+}
+
+class _CadastroGateState extends State<CadastroGate> {
+  bool _checkinTentado = false;
 
   @override
   Widget build(BuildContext context) {
@@ -30,6 +38,13 @@ class CadastroGate extends StatelessWidget {
               ),
             ),
           );
+        }
+
+        if (!auth.precisaCompletarCadastro && !auth.isAdmin && !_checkinTentado) {
+          _checkinTentado = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            CheckinHandler.tentarProcessarPendente(context);
+          });
         }
 
         if (auth.isAdmin) return const MainScreen();

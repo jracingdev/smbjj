@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme.dart';
 import '../../core/mp_service.dart';
+import '../../core/supabase_service.dart';
 
 class MpConfigScreen extends StatefulWidget {
   const MpConfigScreen({super.key});
@@ -184,6 +186,80 @@ class _MpConfigScreenState extends State<MpConfigScreen> {
 
           const SizedBox(height: 24),
 
+          // Webhook automático
+          if (_tokenSalvo != null) ...[
+            Card(
+              color: Colors.blue.shade50,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Row(children: [
+                    Icon(Icons.bolt, color: Colors.blue),
+                    SizedBox(width: 8),
+                    Text('Confirmação automática de pagamento', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                  ]),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Configure o webhook abaixo no painel do Mercado Pago para que os pagamentos sejam marcados automaticamente — sem precisar atualizar manualmente.',
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text('URL do Webhook:', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Row(children: [
+                      Expanded(
+                        child: Text(
+                          '$supabaseUrl/functions/v1/mp-webhook',
+                          style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.copy, size: 18),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        tooltip: 'Copiar URL',
+                        onPressed: () {
+                          Clipboard.setData(const ClipboardData(
+                            text: '$supabaseUrl/functions/v1/mp-webhook',
+                          ));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('URL copiada!'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                      ),
+                    ]),
+                  ),
+                  const SizedBox(height: 12),
+                  _passo('1', 'Acesse o painel do MP → "Seu negócio" → "Webhooks"'),
+                  _passo('2', 'Clique em "Adicionar" e cole a URL acima'),
+                  _passo('3', 'Selecione o evento: "Pagamentos"'),
+                  _passo('4', 'Salve — pronto! Pagamentos serão confirmados em segundos'),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final uri = Uri.parse('https://www.mercadopago.com.br/developers/panel/app');
+                      if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    },
+                    icon: const Icon(Icons.open_in_browser, size: 16),
+                    label: const Text('Abrir painel de Webhooks do MP'),
+                    style: OutlinedButton.styleFrom(foregroundColor: Colors.blue),
+                  ),
+                ]),
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+
           // Info sobre o que é possível
           Card(color: verdeEscuro.withValues(alpha: 0.05), child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             const Text('O que você poderá fazer:', style: TextStyle(fontWeight: FontWeight.w800)),
@@ -193,6 +269,7 @@ class _MpConfigScreenState extends State<MpConfigScreen> {
             _item('Compartilhar link via WhatsApp'),
             _item('PIX, cartão de crédito e boleto'),
             _item('Os alunos pagam pelo link sem instalar nada'),
+            _item('Pagamentos confirmados automaticamente via webhook'),
           ]))),
         ]),
       ),

@@ -1,4 +1,5 @@
-﻿import '../core/supabase_errors.dart';
+﻿import '../core/mp_service.dart';
+import '../core/supabase_errors.dart';
 import '../core/supabase_service.dart';
 import '../models/mensalidade.dart';
 
@@ -51,8 +52,53 @@ class MensalidadeRepository {
     await comTimeout(supabase.from('mensalidades').update({
       'status': 'pago',
       'data_pagamento': DateTime.now().toIso8601String().split('T')[0],
+      'mp_preferencia_id': null,
       'updated_at': DateTime.now().toIso8601String(),
     }).eq('id', id));
+  }
+
+  Future<void> limparPreferenciaMp(String id) async {
+    await comTimeout(supabase.from('mensalidades').update({
+      'mp_preferencia_id': null,
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('id', id));
+  }
+
+  Future<void> salvarPreferenciaId(String id, String preferenciaId) async {
+    await comTimeout(supabase.from('mensalidades').update({
+      'mp_preferencia_id': preferenciaId,
+      'updated_at': DateTime.now().toIso8601String(),
+    }).eq('id', id));
+  }
+
+  /// Consulta o MP para todas as mensalidades pendentes com preference_id salvo
+  /// e marca como pagas as que retornarem status 'approved'.
+  /// Retorna a quantidade de mensalidades marcadas automaticamente.
+  Future<int> sincronizarStatusMP() async {
+    final token = await MercadoPagoService.instance.getAccessToken();
+    if (token == null || token.isEmpty) return 0;
+
+    final data = await comTimeout(
+      supabase
+          .from('mensalidades')
+          .select()
+          .eq('status', 'pendente')
+          .eq('cancelada', false)
+          .not('mp_preferencia_id', 'is', null),
+    );
+    final pendentes = (data as List).map((m) => Mensalidade.fromMap(m)).toList();
+    if (pendentes.isEmpty) return 0;
+
+    int marcadas = 0;
+    await Future.wait(pendentes.map((m) async {
+      if (m.status == 'pago') return;
+      final status = await MercadoPagoService.instance.consultarStatus(m.mpPreferenciaId!);
+      if (status == 'approved') {
+        await marcarPago(m.id);
+        marcadas++;
+      }
+    }));
+    return marcadas;
   }
 
   Future<void> deletar(String id) async {

@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/aluno.dart';
 import '../../models/usuario.dart';
@@ -38,15 +39,16 @@ class AuthProvider extends ChangeNotifier {
       !_alunoVinculado!.cadastroValidado;
 
   Future<void> inicializar() async {
-    _usuario = await AuthService.instance.recuperarSessao();
-    _carregando = false;
-    notifyListeners();
+    try {
+      _usuario = await AuthService.instance.recuperarSessao();
+    } catch (e, st) {
+      debugPrint('AuthProvider.inicializar sessão: $e\n$st');
+    } finally {
+      _carregando = false;
+      notifyListeners();
+    }
     if (_usuario != null && !isAdmin) {
-      _carregandoAluno = true;
-      notifyListeners();
       await _atualizarVinculoAluno();
-      _carregandoAluno = false;
-      notifyListeners();
     }
 
     AuthService.instance.authStateChanges.listen((data) async {
@@ -78,13 +80,18 @@ class AuthProvider extends ChangeNotifier {
       _alunoVinculado = null;
       return;
     }
-    if (_usuario!.alunoId != null) {
-      _alunoVinculado = await _alunoRepo.buscarPorId(_usuario!.alunoId!);
-    }
-    _alunoVinculado ??= await _alunoRepo.buscarPorEmail(_usuario!.email);
-    if (_alunoVinculado != null && _usuario!.alunoId == null) {
-      await AuthService.instance.vincularAluno(_usuario!.id, _alunoVinculado!.id);
-      _usuario = _usuario!.copyWith(alunoId: _alunoVinculado!.id);
+    try {
+      if (_usuario!.alunoId != null) {
+        _alunoVinculado = await _alunoRepo.buscarPorId(_usuario!.alunoId!);
+      }
+      _alunoVinculado ??= await _alunoRepo.buscarPorEmail(_usuario!.email);
+      if (_alunoVinculado != null && _usuario!.alunoId == null) {
+        await AuthService.instance.vincularAluno(_usuario!.id, _alunoVinculado!.id);
+        _usuario = _usuario!.copyWith(alunoId: _alunoVinculado!.id);
+      }
+    } catch (e, st) {
+      debugPrint('AuthProvider._carregarAlunoVinculado: $e\n$st');
+      _mensagemAuth = 'Não foi possível carregar seu cadastro. Tente novamente em instantes.';
     }
   }
 

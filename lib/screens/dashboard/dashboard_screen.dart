@@ -17,12 +17,24 @@ import '../../models/evento.dart';
 import '../../utils/bjj_utils.dart';
 import '../../widgets/faixa_badge.dart';
 import '../../widgets/turmas_aluno_card.dart';
+import '../../widgets/contatos_card.dart';
+import '../../widgets/turmas_grafico_card.dart';
+import '../../widgets/quadro_medalhas_card.dart';
+import '../../repositories/medalha_repository.dart';
+import '../../models/medalha.dart';
+import '../medalhas/medalhas_admin_screen.dart';
+import '../../core/avisos/aviso_lido_service.dart';
+import '../../core/medalhas/medalha_lido_service.dart';
+import '../../utils/aniversario_utils.dart';
+import '../../utils/date_utils.dart';
+import '../presenca/presenca_admin_screen.dart';
 import '../../repositories/turma_repository.dart';
 import '../../models/turma.dart';
 
 class DashboardScreen extends StatefulWidget {
   final VoidCallback? onValidarPendentes;
-  const DashboardScreen({super.key, this.onValidarPendentes});
+  final VoidCallback? onAvisosLidos;
+  const DashboardScreen({super.key, this.onValidarPendentes, this.onAvisosLidos});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -39,6 +51,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<Aviso> _avisos = [];
   List<Evento> _eventos = [];
   List<Turma> _minhasTurmas = [];
+  List<Turma> _todasTurmas = [];
+  Map<String, int> _contagemTurmas = {};
+  List<Medalha> _medalhas = [];
+  List<Aluno> _aniversariantesTurma = [];
+  int _avisosNaoLidos = 0;
+  int _medalhasNovas = 0;
   bool _loading = true;
 
   @override
@@ -52,17 +70,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final isAdmin = context.read<AuthProvider>().isAdmin;
     try {
       if (isAdmin) {
+        final turmaRepo = TurmaRepository();
         final results = await Future.wait([
           _alunoRepo.listar(),
           _mensRepo.listar(mes: now.month, ano: now.year),
           _avisoRepo.listar(apenasAtivos: false),
           _eventoRepo.listar(),
+          turmaRepo.listar(apenasAtivas: false),
+          turmaRepo.contagemAlunosPorTurma(),
+          MedalhaRepository().listar(),
         ]);
         if (mounted) setState(() {
           _alunos = results[0] as List<Aluno>;
           _mensalidades = results[1] as List<Mensalidade>;
           _avisos = results[2] as List<Aviso>;
           _eventos = results[3] as List<Evento>;
+          _todasTurmas = results[4] as List<Turma>;
+          _contagemTurmas = results[5] as Map<String, int>;
+          _medalhas = results[6] as List<Medalha>;
           _loading = false;
         });
       } else {
@@ -70,16 +95,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final results = await Future.wait([
           _avisoRepo.listar(apenasAtivos: true),
           _eventoRepo.listar(),
+          MedalhaRepository().listar(),
         ]);
         List<Turma> turmas = [];
         final aluno = auth.alunoVinculado;
         if (aluno != null) {
           turmas = await TurmaRepository().turmasDoAluno(aluno.id);
         }
+        final avisos = results[0] as List<Aviso>;
+        final medalhas = results[2] as List<Medalha>;
+        final naoLidos = await AvisoLidoService().contarNaoLidos(avisos);
+        final medalhasNovas = await MedalhaLidoService().contarNovas(medalhas);
+        var aniversariantes = <Aluno>[];
+        if (aluno != null) {
+          final colegas = await _alunoRepo.listarColegasDeTurmas(aluno.id);
+          aniversariantes = aniversariantesHoje(colegas: colegas, excluirAlunoId: aluno.id);
+        }
         if (mounted) setState(() {
-          _avisos = results[0] as List<Aviso>;
+          _avisos = avisos;
           _eventos = results[1] as List<Evento>;
+          _medalhas = medalhas;
           _minhasTurmas = turmas;
+          _avisosNaoLidos = naoLidos;
+          _medalhasNovas = medalhasNovas;
+          _aniversariantesTurma = aniversariantes;
           _loading = false;
         });
       }
@@ -125,7 +164,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Text('${meses[now.month - 1]} de ${now.year}', style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
+        Text(formatMesAnoPartes(now.month, now.year), style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
         const SizedBox(height: 12),
 
         if (pendentesValidacao > 0)
@@ -150,6 +189,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         const SizedBox(height: 20),
 
+        _SectionTitle('Alunos por Turma'),
+        TurmasGraficoCard(turmas: _todasTurmas, contagem: _contagemTurmas),
+        const SizedBox(height: 12),
+        Card(
+          child: ListTile(
+            leading: const CircleAvatar(
+              backgroundColor: verdeEscuro,
+              child: Icon(Icons.fact_check, color: Colors.white),
+            ),
+            title: const Text('Presença nos treinos', style: TextStyle(fontWeight: FontWeight.w700)),
+            subtitle: const Text('Chamada manual, QR por turma ou QR único'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PresencaAdminScreen())),
+          ),
+        ),
+        const SizedBox(height: 20),
+
         // Alunos recentes
         _SectionTitle('Alunos Recentes'),
         Card(
@@ -168,6 +224,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
         const SizedBox(height: 20),
 
         _AvisosCard(avisos: _avisos, isAdmin: true, onRefresh: _load),
+        const SizedBox(height: 20),
+
+        _SectionTitle('Quadro de medalhas (Ranking interno)'),
+        QuadroMedalhasCard(
+          medalhas: _medalhas,
+          isAdmin: true,
+          onGerenciar: () async {
+            await Navigator.push(context, MaterialPageRoute(builder: (_) => const MedalhasAdminScreen()));
+            _load();
+          },
+        ),
         const SizedBox(height: 20),
 
         _EventosCard(eventos: _eventos, isAdmin: true, onRefresh: _load),
@@ -203,14 +270,123 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(height: 16),
         ],
+        if (_aniversariantesTurma.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Material(
+              color: Colors.pink.shade50,
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.cake_outlined, color: Colors.pink.shade700),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Aniversariante da turma!',
+                            style: TextStyle(fontWeight: FontWeight.w800, color: Colors.pink.shade900, fontSize: 14),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            _aniversariantesTurma.map((a) => a.nome.split(' ').first).join(', '),
+                            style: TextStyle(fontSize: 13, color: Colors.pink.shade800),
+                          ),
+                          Text(
+                            'Parabenize seu(s) colega(s) de treino hoje!',
+                            style: TextStyle(fontSize: 11, color: Colors.pink.shade700),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         _SectionTitle('Minha Turma'),
         TurmasAlunoCard(turmas: _minhasTurmas),
         const SizedBox(height: 20),
         _SectionTitle('Avisos'),
-        _AvisosCard(avisos: _avisos, isAdmin: false),
+        if (_avisosNaoLidos > 0)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Material(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(10),
+              child: InkWell(
+                onTap: () async {
+                  await Navigator.push(context, MaterialPageRoute(builder: (_) => const AvisosScreen()));
+                  widget.onAvisosLidos?.call();
+                  _load();
+                },
+                borderRadius: BorderRadius.circular(10),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  child: Row(
+                    children: [
+                      Icon(Icons.notifications_active, color: Colors.orange.shade800, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          '$_avisosNaoLidos novo(s) aviso(s)',
+                          style: TextStyle(fontWeight: FontWeight.w700, color: Colors.orange.shade900, fontSize: 13),
+                        ),
+                      ),
+                      Icon(Icons.chevron_right, color: Colors.orange.shade700),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        _AvisosCard(avisos: _avisos, isAdmin: false, naoLidos: _avisosNaoLidos, onAvisosAbertos: () {
+          widget.onAvisosLidos?.call();
+          _load();
+        }),
+        const SizedBox(height: 20),
+        _SectionTitle('Quadro de medalhas (Ranking interno)'),
+        if (_medalhasNovas > 0)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Material(
+              color: Colors.amber.shade50,
+              borderRadius: BorderRadius.circular(10),
+              child: InkWell(
+                onTap: () async {
+                  await MedalhaLidoService().marcarComoVisto();
+                  if (mounted) setState(() => _medalhasNovas = 0);
+                },
+                borderRadius: BorderRadius.circular(10),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  child: Row(
+                    children: [
+                      Icon(Icons.emoji_events, color: Colors.amber.shade800, size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Quadro de medalhas atualizado — toque para marcar como visto',
+                          style: TextStyle(fontWeight: FontWeight.w700, color: Colors.amber.shade900, fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        QuadroMedalhasCard(medalhas: _medalhas),
         const SizedBox(height: 20),
         _SectionTitle('Próximos Eventos'),
         _EventosCard(eventos: _eventos, isAdmin: false),
+        const SizedBox(height: 20),
+        _SectionTitle('Fale conosco'),
+        const ContatosCard(),
         const SizedBox(height: 20),
       ],
     );
@@ -296,7 +472,15 @@ class _AvisosCard extends StatelessWidget {
   final List<Aviso> avisos;
   final bool isAdmin;
   final VoidCallback? onRefresh;
-  const _AvisosCard({required this.avisos, this.isAdmin = false, this.onRefresh});
+  final int naoLidos;
+  final VoidCallback? onAvisosAbertos;
+  const _AvisosCard({
+    required this.avisos,
+    this.isAdmin = false,
+    this.onRefresh,
+    this.naoLidos = 0,
+    this.onAvisosAbertos,
+  });
 
   static const _cores = {
     'alerta': Colors.orange, 'importante': Colors.red, 'bjj_news': Colors.purple,
@@ -366,8 +550,12 @@ class _AvisosCard extends StatelessWidget {
             );
           }),
         if (!isAdmin) ListTile(
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AvisosScreen())),
-          title: const Text('Ver todos os avisos', style: TextStyle(color: verdeEscuro, fontWeight: FontWeight.w600, fontSize: 13)),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AvisosScreen()))
+              .then((_) => onAvisosAbertos?.call()),
+          title: Text(
+            naoLidos > 0 ? 'Ver todos os avisos ($naoLidos novo(s))' : 'Ver todos os avisos',
+            style: const TextStyle(color: verdeEscuro, fontWeight: FontWeight.w600, fontSize: 13),
+          ),
           trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: verdeEscuro),
         ),
       ]),
@@ -432,7 +620,7 @@ class _EventosCard extends StatelessWidget {
               leading: Icon(icon, color: cor),
               title: Text(e.titulo, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
               subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('${e.data}${e.horaInicio != null ? ' às ${e.horaInicio}${e.horaFim != null ? '–${e.horaFim}' : ''}' : ''}${e.local != null ? ' · ${e.local}' : ''}',
+                Text('${formatDataBr(e.data)}${e.horaInicio != null ? ' às ${e.horaInicio}${e.horaFim != null ? '–${e.horaFim}' : ''}' : ''}${e.local != null ? ' · ${e.local}' : ''}',
                     style: const TextStyle(fontSize: 12)),
                 if (e.linkUrl != null && e.linkUrl!.isNotEmpty)
                   GestureDetector(

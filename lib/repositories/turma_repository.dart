@@ -21,7 +21,7 @@ class TurmaRepository {
       'horario': turma.horario,
       'dias_semana': turma.diasSemana,
       'tipo': turma.tipo,
-      'ativa': turma.ativa,
+      // Não altera ativa ao editar dias — evita desativar turma por engano
     }).eq('id', turma.id);
   }
 
@@ -77,15 +77,52 @@ class TurmaRepository {
   }
 
   Future<void> substituirTurmasAluno(String alunoId, List<String> turmaIds) async {
-    await supabase.from('aluno_turmas').delete().eq('aluno_id', alunoId);
-    if (turmaIds.isEmpty) return;
+    final atuais = await supabase
+        .from('aluno_turmas')
+        .select('turma_id, data_inicio')
+        .eq('aluno_id', alunoId);
+    final datasExistentes = <String, String>{};
+    final idsAtuais = <String>{};
+    for (final row in atuais as List) {
+      final tid = row['turma_id'] as String;
+      final d = row['data_inicio'] as String?;
+      idsAtuais.add(tid);
+      if (d != null && d.isNotEmpty) datasExistentes[tid] = d;
+    }
+
     final hoje = DateTime.now().toIso8601String().substring(0, 10);
-    await supabase.from('aluno_turmas').insert(
-      turmaIds.map((tid) => {
-        'aluno_id': alunoId,
-        'turma_id': tid,
-        'data_inicio': hoje,
-      }).toList(),
+    final novos = turmaIds.where((tid) => !idsAtuais.contains(tid)).toList();
+    final removidos = idsAtuais.where((tid) => !turmaIds.contains(tid)).toList();
+
+    // Inserir novos antes de remover os antigos — evita deixar aluno sem turma se o delete falhar
+    if (novos.isNotEmpty) {
+      await supabase.from('aluno_turmas').insert(
+        novos.map((tid) => {
+          'aluno_id': alunoId,
+          'turma_id': tid,
+          'data_inicio': hoje,
+        }).toList(),
+      );
+    }
+    if (removidos.isNotEmpty) {
+      await supabase
+          .from('aluno_turmas')
+          .delete()
+          .eq('aluno_id', alunoId)
+          .inFilter('turma_id', removidos);
+    }
+  }
+
+  /// Contagem de alunos por turma (uma consulta).
+  Future<Map<String, int>> contagemAlunosPorTurma() async {
+    final data = await comTimeout(
+      supabase.from('aluno_turmas').select('turma_id'),
     );
+    final map = <String, int>{};
+    for (final row in data as List) {
+      final tid = row['turma_id'] as String;
+      map[tid] = (map[tid] ?? 0) + 1;
+    }
+    return map;
   }
 }

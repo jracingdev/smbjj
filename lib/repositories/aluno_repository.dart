@@ -14,13 +14,38 @@ class AlunoRepository {
   }
 
   Future<Aluno?> buscarPorEmail(String email) async {
-    final data = await supabase.from('alunos').select().eq('email', email).maybeSingle();
-    return data != null ? Aluno.fromMap(data) : null;
+    try {
+      final data = await supabase.from('alunos').select().eq('email', email).maybeSingle();
+      return data != null ? Aluno.fromMap(data) : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<Aluno?> buscarPorId(String id) async {
     final data = await supabase.from('alunos').select().eq('id', id).maybeSingle();
     return data != null ? Aluno.fromMap(data) : null;
+  }
+
+  Future<List<Aluno>> listarPorIds(List<String> ids) async {
+    if (ids.isEmpty) return [];
+    final data = await supabase.from('alunos').select().inFilter('id', ids).order('nome');
+    return (data as List).map((m) => Aluno.fromMap(m)).toList();
+  }
+
+  /// Colegas validados das mesmas turmas (RLS permite leitura).
+  Future<List<Aluno>> listarColegasDeTurmas(String alunoId) async {
+    final turmaRepo = TurmaRepository();
+    final minhasTurmas = await turmaRepo.turmasDoAluno(alunoId);
+    if (minhasTurmas.isEmpty) return [];
+    final ids = <String>{};
+    for (final t in minhasTurmas) {
+      final membros = await turmaRepo.alunoIdsPorTurma(t.id);
+      ids.addAll(membros);
+    }
+    ids.remove(alunoId);
+    if (ids.isEmpty) return [];
+    return listarPorIds(ids.toList());
   }
 
   Future<Aluno> criar(Aluno aluno) async {

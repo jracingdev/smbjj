@@ -14,6 +14,7 @@ import '../../repositories/financeiro_config_repository.dart';
 import '../../repositories/mensalidade_repository.dart';
 import '../../repositories/turma_repository.dart';
 import '../../utils/bjj_utils.dart';
+import '../../utils/date_utils.dart';
 import '../../utils/whatsapp_utils.dart';
 import '../../widgets/cobranca_whatsapp_banner.dart';
 import 'financeiro_config_screen.dart';
@@ -55,8 +56,17 @@ class _FinanceiroScreenState extends State<FinanceiroScreen> with SingleTickerPr
     super.dispose();
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool sincronizarMP = true}) async {
     setState(() => _loading = true);
+
+    // Sincroniza status MP em background antes de carregar a tela
+    int marcadasAuto = 0;
+    if (sincronizarMP) {
+      try {
+        marcadasAuto = await _mensRepo.sincronizarStatusMP();
+      } catch (_) {}
+    }
+
     final results = await Future.wait([
       _mensRepo.listar(mes: _mes, ano: _ano),
       _mensRepo.listar(ano: _ano),
@@ -83,6 +93,13 @@ class _FinanceiroScreenState extends State<FinanceiroScreen> with SingleTickerPr
         _mpConfigurado = token != null && token.isNotEmpty;
         _loading = false;
       });
+      if (marcadasAuto > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('✅ $marcadasAuto pagamento(s) confirmado(s) automaticamente pelo Mercado Pago!'),
+          backgroundColor: verdeEscuro,
+          duration: const Duration(seconds: 4),
+        ));
+      }
     }
   }
 
@@ -95,7 +112,12 @@ class _FinanceiroScreenState extends State<FinanceiroScreen> with SingleTickerPr
   double get _totalArrecadado => _mensalidades.where((m) => m.status == 'pago').fold(0, (s, m) => s + m.valor);
   double get _totalEsperado => _alunosCobranca.fold(0, (s, a) => s + _valorAluno(a));
   List<Aluno> get _alunosPagos => _alunos.where((a) => _mensalidades.any((m) => m.alunoId == a.id && m.status == 'pago')).toList();
-  List<Aluno> get _alunosNaoPagos => _alunos.where((a) => !_mensalidades.any((m) => m.alunoId == a.id && m.status == 'pago')).toList();
+  List<Aluno> get _alunosNaoPagos => _alunos.where((a) {
+        if (!a.cadastroValidado || !a.cobrancaAtiva) return false;
+        final mens = _mensalidades.where((m) => m.alunoId == a.id && !m.cancelada);
+        if (mens.isEmpty) return true;
+        return mens.every((m) => m.status != 'pago');
+      }).toList();
   int get _diaAtual => DateTime.now().month == _mes && DateTime.now().year == _ano ? DateTime.now().day : 0;
 
   @override
@@ -167,6 +189,8 @@ class _FinanceiroScreenState extends State<FinanceiroScreen> with SingleTickerPr
                 _MensalidadesTab(
                   alunos: _alunos,
                   mensalidades: _mensalidades,
+                  turmas: _turmas,
+                  alunoIdsPorTurma: _alunoIdsPorTurma,
                   mes: _mes,
                   ano: _ano,
                   config: _config,
@@ -185,6 +209,7 @@ class _FinanceiroScreenState extends State<FinanceiroScreen> with SingleTickerPr
                   alunosNaoPagos: _alunosNaoPagos,
                   valorAluno: _valorAluno,
                   onRefresh: _load,
+                  mensRepo: _mensRepo,
                 ),
               ],
             ),
@@ -233,7 +258,7 @@ class _PainelBI extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mesNome = meses[mes - 1];
+    final mesAno = formatMesAnoPartes(mes, ano);
     final anoAtual = DateTime.now().year;
     final venc = config.diaVencimento;
 
@@ -323,8 +348,8 @@ class _PainelBI extends StatelessWidget {
       _BiCard(
         child: Column(children: [
           _BiRow(label: 'Alunos com cobrança', value: '${alunosCobranca.length}', icon: Icons.people),
-          _BiRow(label: 'Mensalidade esperada ($mesNome)', value: 'R\$ ${totalEsperado.toStringAsFixed(2)}', icon: Icons.calculate_outlined),
-          _BiRow(label: 'Arrecadado em $mesNome', value: 'R\$ ${totalArrecadado.toStringAsFixed(2)}', icon: Icons.attach_money, cor: Colors.green),
+          _BiRow(label: 'Mensalidade esperada ($mesAno)', value: 'R\$ ${totalEsperado.toStringAsFixed(2)}', icon: Icons.calculate_outlined),
+          _BiRow(label: 'Arrecadado em $mesAno', value: 'R\$ ${totalArrecadado.toStringAsFixed(2)}', icon: Icons.attach_money, cor: Colors.green),
           _BiRow(label: 'Gap do mês', value: 'R\$ ${proj.gapMesAtual.toStringAsFixed(2)}', icon: Icons.remove_circle_outline, cor: proj.gapMesAtual > 0 ? Colors.red : Colors.green),
         ]),
       ),
@@ -371,7 +396,7 @@ class _PainelBI extends StatelessWidget {
       _BiCard(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           const Text('Status por Aluno', style: TextStyle(fontWeight: FontWeight.w700)),
-          Text('$mesNome/$ano', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+          Text(mesAno, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
         ]),
         const SizedBox(height: 10),
         Wrap(spacing: 8, runSpacing: 8, children: [
@@ -552,9 +577,11 @@ class _AlunoChip extends StatelessWidget {
 // ─────────────────────────────────────────────
 // ABA DE MENSALIDADES (existente)
 // ─────────────────────────────────────────────
-class _MensalidadesTab extends StatelessWidget {
+class _MensalidadesTab extends StatefulWidget {
   final List<Aluno> alunos;
   final List<Mensalidade> mensalidades;
+  final List<Turma> turmas;
+  final Map<String, List<String>> alunoIdsPorTurma;
   final int mes, ano, pendentes;
   final FinanceiroConfig config;
   final double totalArrecadado;
@@ -565,6 +592,8 @@ class _MensalidadesTab extends StatelessWidget {
   const _MensalidadesTab({
     required this.alunos,
     required this.mensalidades,
+    required this.turmas,
+    required this.alunoIdsPorTurma,
     required this.mes,
     required this.ano,
     required this.config,
@@ -576,18 +605,91 @@ class _MensalidadesTab extends StatelessWidget {
   });
 
   @override
+  State<_MensalidadesTab> createState() => _MensalidadesTabState();
+}
+
+class _MensalidadesTabState extends State<_MensalidadesTab> {
+  final _buscaCtrl = TextEditingController();
+  String? _turmaFiltroId;
+
+  @override
+  void dispose() {
+    _buscaCtrl.dispose();
+    super.dispose();
+  }
+
+  List<Mensalidade> get _filtradas {
+    final q = _buscaCtrl.text.trim().toLowerCase();
+    final idsTurma = _turmaFiltroId != null
+        ? (widget.alunoIdsPorTurma[_turmaFiltroId!] ?? const <String>[]).toSet()
+        : null;
+    return widget.mensalidades.where((m) {
+      if (idsTurma != null && !idsTurma.contains(m.alunoId)) return false;
+      if (q.isEmpty) return true;
+      final nome = (m.alunoNome ?? '').toLowerCase();
+      return nome.contains(q);
+    }).toList();
+  }
+
+  Future<void> _lembreteTurma(BuildContext context) async {
+    if (_turmaFiltroId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecione uma turma no filtro para enviar lembrete em lote.')),
+      );
+      return;
+    }
+    final turma = widget.turmas.firstWhere((t) => t.id == _turmaFiltroId);
+    final ids = widget.alunoIdsPorTurma[_turmaFiltroId!] ?? [];
+    final pendentes = _filtradas.where((m) => m.status != 'pago' && !m.cancelada).toList();
+    final alunosTurma = pendentes
+        .map((m) => widget.alunos.firstWhere((a) => a.id == m.alunoId, orElse: () => Aluno(id: m.alunoId, nome: m.alunoNome ?? '?')))
+        .where((a) => ids.contains(a.id))
+        .toList();
+    if (alunosTurma.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nenhuma mensalidade pendente nesta turma.')),
+      );
+      return;
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('Lembrete — ${turma.nome}'),
+        content: Text('Enviar WhatsApp de cobrança para ${alunosTurma.length} aluno(s) pendente(s)?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Enviar')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    for (final m in pendentes) {
+      final aluno = widget.alunos.firstWhere((a) => a.id == m.alunoId, orElse: () => Aluno(id: m.alunoId, nome: m.alunoNome ?? '?'));
+      await enviarCobranca(
+        tipo: 'aviso5',
+        aluno: aluno,
+        mes: widget.mes,
+        ano: widget.ano,
+        valor: m.valor,
+        diaVencimento: widget.config.diaVencimento,
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final repo = MensalidadeRepository();
     final anoAtual = DateTime.now().year;
+    final filtradas = _filtradas;
 
     Future<void> marcarPago(Mensalidade m) async {
       await repo.marcarPago(m.id);
-      onRefresh();
+      widget.onRefresh();
     }
 
     Future<void> desfazer(Mensalidade m) async {
-      await repo.atualizar(m.copyWith(status: 'pendente', dataPagamento: null));
-      onRefresh();
+      await repo.atualizar(m.copyWith(status: 'pendente', limparDataPagamento: true, limparMpPreferencia: true));
+      widget.onRefresh();
     }
 
     Future<void> deletar(Mensalidade m) async {
@@ -597,68 +699,96 @@ class _MensalidadesTab extends StatelessWidget {
             TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
             TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Remover', style: TextStyle(color: Colors.red))),
           ]));
-      if (ok == true) { await repo.deletar(m.id); onRefresh(); }
+      if (ok == true) { await repo.deletar(m.id); widget.onRefresh(); }
     }
 
     return Column(children: [
       Container(color: Colors.white, padding: const EdgeInsets.all(14), child: Column(children: [
         Row(children: [
           Expanded(child: DropdownButtonFormField<int>(
-            value: mes, decoration: const InputDecoration(labelText: 'Mês', isDense: true),
+            value: widget.mes, decoration: const InputDecoration(labelText: 'Mês', isDense: true),
             items: List.generate(12, (i) => DropdownMenuItem(value: i + 1, child: Text(meses[i]))),
-            onChanged: (v) => onChangeMes(v!, ano),
+            onChanged: (v) => widget.onChangeMes(v!, widget.ano),
           )),
           const SizedBox(width: 12),
           Expanded(child: DropdownButtonFormField<int>(
-            value: ano, decoration: const InputDecoration(labelText: 'Ano', isDense: true),
+            value: widget.ano, decoration: const InputDecoration(labelText: 'Ano', isDense: true),
             items: [anoAtual - 1, anoAtual, anoAtual + 1].map((y) => DropdownMenuItem(value: y, child: Text('$y'))).toList(),
-            onChanged: (v) => onChangeMes(mes, v!),
+            onChanged: (v) => widget.onChangeMes(widget.mes, v!),
           )),
         ]),
+        const SizedBox(height: 10),
+        TextField(
+          controller: _buscaCtrl,
+          decoration: const InputDecoration(
+            labelText: 'Filtrar por nome',
+            prefixIcon: Icon(Icons.search, size: 20),
+            isDense: true,
+          ),
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 8),
+        DropdownButtonFormField<String?>(
+          value: _turmaFiltroId,
+          decoration: const InputDecoration(labelText: 'Filtrar por turma', isDense: true),
+          items: [
+            const DropdownMenuItem(value: null, child: Text('Todas as turmas')),
+            ...widget.turmas.map((t) => DropdownMenuItem(value: t.id, child: Text(t.nome))),
+          ],
+          onChanged: (v) => setState(() => _turmaFiltroId = v),
+        ),
+        if (_turmaFiltroId != null) ...[
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () => _lembreteTurma(context),
+            icon: const Icon(Icons.groups, size: 18),
+            label: const Text('Lembrete WhatsApp para turma'),
+          ),
+        ],
         const SizedBox(height: 10),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text('Arrecadado', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-            Text('R\$ ${totalArrecadado.toStringAsFixed(2)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.green)),
+            Text('R\$ ${widget.totalArrecadado.toStringAsFixed(2)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.green)),
           ]),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
             Text('Pendentes', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-            Text('$pendentes', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.orange)),
+            Text('${widget.pendentes}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.orange)),
           ]),
         ]),
       ])),
       CobrancaWhatsAppBanner(
-        mes: mes,
-        ano: ano,
-        diaVencimento: config.diaVencimento,
-        diasWhatsAppExtras: config.diasWhatsAppExtras,
-        mensalidades: mensalidades,
-        alunos: alunos,
-        mesAtualSelecionado: mes == DateTime.now().month && ano == DateTime.now().year,
+        mes: widget.mes,
+        ano: widget.ano,
+        diaVencimento: widget.config.diaVencimento,
+        diasWhatsAppExtras: widget.config.diasWhatsAppExtras,
+        mensalidades: filtradas,
+        alunos: widget.alunos,
+        mesAtualSelecionado: widget.mes == DateTime.now().month && widget.ano == DateTime.now().year,
       ),
-      Expanded(child: mensalidades.isEmpty
-          ? Center(child: Text('Nenhum registro para ${meses[mes - 1]}/$ano', style: TextStyle(color: Colors.grey.shade500)))
-          : RefreshIndicator(onRefresh: () async => onRefresh(), child: ListView.separated(
+      Expanded(child: filtradas.isEmpty
+          ? Center(child: Text('Nenhum registro para ${formatMesAnoPartes(widget.mes, widget.ano)}', style: TextStyle(color: Colors.grey.shade500)))
+          : RefreshIndicator(onRefresh: () async => widget.onRefresh(), child: ListView.separated(
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 80),
-              itemCount: mensalidades.length,
+              itemCount: filtradas.length,
               separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (ctx, i) {
-                final m = mensalidades[i];
-                final aluno = alunos.firstWhere((a) => a.id == m.alunoId, orElse: () => Aluno(id: '', nome: m.alunoNome ?? '?'));
+                final m = filtradas[i];
+                final aluno = widget.alunos.firstWhere((a) => a.id == m.alunoId, orElse: () => Aluno(id: '', nome: m.alunoNome ?? '?'));
                 return _MensalidadeCard(
                   mensalidade: m,
                   aluno: aluno,
-                  diaVencimento: config.diaVencimento,
+                  diaVencimento: widget.config.diaVencimento,
                   onPago: m.status != 'pago' ? () => marcarPago(m) : null,
                   onDesfazer: m.status == 'pago' ? () => desfazer(m) : null,
                   onDelete: () => deletar(m),
                   onWhatsapp: (tipo) => enviarCobranca(
                     tipo: tipo,
                     aluno: aluno,
-                    mes: mes,
-                    ano: ano,
+                    mes: widget.mes,
+                    ano: widget.ano,
                     valor: m.valor,
-                    diaVencimento: config.diaVencimento,
+                    diaVencimento: widget.config.diaVencimento,
                   ),
                 );
               },
@@ -671,11 +801,11 @@ class _MensalidadesTab extends StatelessWidget {
             await showModalBottomSheet(context: context, isScrollControlled: true, useSafeArea: true,
               shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
               builder: (_) => _NovaMensalidadeSheet(
-                    alunos: alunos,
-                    mes: mes,
-                    ano: ano,
-                    valorAluno: valorAluno,
-                    onSaved: onRefresh,
+                    alunos: widget.alunos,
+                    mes: widget.mes,
+                    ano: widget.ano,
+                    valorAluno: widget.valorAluno,
+                    onSaved: widget.onRefresh,
                   ));
           },
           icon: const Icon(Icons.add),
@@ -696,6 +826,7 @@ class _MpTab extends StatefulWidget {
   final bool mpConfigurado;
   final double Function(Aluno) valorAluno;
   final VoidCallback onRefresh;
+  final MensalidadeRepository mensRepo;
 
   const _MpTab({
     required this.alunos,
@@ -706,6 +837,7 @@ class _MpTab extends StatefulWidget {
     required this.alunosNaoPagos,
     required this.valorAluno,
     required this.onRefresh,
+    required this.mensRepo,
   });
 
   @override
@@ -716,13 +848,24 @@ class _MpTabState extends State<_MpTab> {
   final Map<String, bool> _loadingMap = {};
 
   Future<void> _cobrarAluno(Aluno aluno) async {
+    final mensList = widget.mensalidades.where((m) => m.alunoId == aluno.id && !m.cancelada).toList();
+    if (mensList.any((m) => m.status == 'pago')) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${aluno.nome} já está com mensalidade paga (baixa manual ou MP).'),
+            backgroundColor: Colors.orange.shade800,
+          ),
+        );
+      }
+      return;
+    }
     setState(() => _loadingMap[aluno.id] = true);
-    final mensList = widget.mensalidades.where((m) => m.alunoId == aluno.id);
     final valor = mensList.isEmpty ? widget.valorAluno(aluno) : mensList.first.valor;
-    final mesNome = meses[widget.mes - 1];
+    final mesAno = formatMesAnoPartes(widget.mes, widget.ano);
 
     final pref = await MercadoPagoService.instance.criarCobranca(
-      titulo: 'Mensalidade $mesNome/${widget.ano} — ${aluno.nome}',
+      titulo: 'Mensalidade $mesAno — ${aluno.nome}',
       valor: valor,
       emailPagador: aluno.email,
       descricao: 'SM BJJ — Academia de Jiu-Jitsu',
@@ -741,11 +884,20 @@ class _MpTabState extends State<_MpTab> {
       return;
     }
 
+    // Salva o preference_id na mensalidade para permitir consulta automática de status
+    if (mensList.isNotEmpty) {
+      try {
+        await widget.mensRepo.salvarPreferenciaId(mensList.first.id, pref.id);
+      } catch (_) {}
+    }
+
     // Mostra opções: abrir link ou compartilhar via WhatsApp
-    showModalBottomSheet(context: context, useSafeArea: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => _LinkSheet(aluno: aluno, pref: pref, mes: widget.mes, ano: widget.ano, valor: valor),
-    );
+    if (mounted) {
+      showModalBottomSheet(context: context, useSafeArea: true,
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+        builder: (_) => _LinkSheet(aluno: aluno, pref: pref, mes: widget.mes, ano: widget.ano, valor: valor),
+      );
+    }
   }
 
   Future<void> _cobrarAvulso() async {
@@ -780,7 +932,7 @@ class _MpTabState extends State<_MpTab> {
       ));
     }
 
-    final mesNome = meses[widget.mes - 1];
+    final mesAno = formatMesAnoPartes(widget.mes, widget.ano);
 
     return ListView(padding: EdgeInsets.fromLTRB(16, 16, 16, MediaQuery.of(context).padding.bottom + 80), children: [
       // Cobrança avulsa
@@ -796,7 +948,7 @@ class _MpTabState extends State<_MpTab> {
       ),
       const SizedBox(height: 16),
 
-      Text('Mensalidades pendentes — $mesNome/${widget.ano}',
+      Text('Mensalidades pendentes — $mesAno',
           style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14)),
       const SizedBox(height: 8),
 
@@ -805,7 +957,7 @@ class _MpTabState extends State<_MpTab> {
           child: Row(children: [
             const Icon(Icons.check_circle, color: Colors.green, size: 28),
             const SizedBox(width: 12),
-            Text('Todos em dia em $mesNome!', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
+            Text('Todos em dia em $mesAno!', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
           ]),
         ))
       else
@@ -853,7 +1005,7 @@ class _LinkSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mesNome = meses[mes - 1];
+    final mesAno = formatMesAnoPartes(mes, ano);
     final tel = aluno.telefoneResponsavel ?? aluno.telefone;
 
     Future<void> abrirLink() async {
@@ -864,7 +1016,7 @@ class _LinkSheet extends StatelessWidget {
     Future<void> enviarWhatsApp() async {
       if (tel == null) return;
       final msg = 'Olá, ${aluno.nomeResponsavel ?? aluno.nome}! 😊\n\n'
-          'Segue o link para pagamento da mensalidade de *$mesNome/$ano* da SM BJJ:\n\n'
+          'Segue o link para pagamento da mensalidade de *$mesAno* da SM BJJ:\n\n'
           '💰 Valor: *R\$ ${valor.toStringAsFixed(2)}*\n\n'
           '🔗 Link de pagamento:\n${pref.link}\n\n'
           'Aceitamos PIX, cartão e boleto pelo link! 🥋';
@@ -936,22 +1088,23 @@ class _CobrancaAvulsaSheetState extends State<_CobrancaAvulsaSheet> {
       return;
     }
 
+    // Captura dados antes de fechar (context.mounted = false após pop + await)
+    final link = pref.link;
+    final titulo = _tituloCtrl.text.trim();
+    final tel = _aluno?.telefoneResponsavel ?? _aluno?.telefone;
+    final nomeContato = _aluno?.nomeResponsavel ?? _aluno?.nome;
+
     Navigator.pop(context);
 
-    // Abre link
-    final uri = Uri.parse(pref.link);
+    final uri = Uri.parse(link);
     if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
 
-    // Se tem aluno com telefone, oferece WhatsApp
-    if (_aluno != null) {
-      final tel = _aluno!.telefoneResponsavel ?? _aluno!.telefone;
-      if (tel != null && context.mounted) {
-        final msg = 'Olá! Segue o link de pagamento da SM BJJ:\n\n'
-            '📋 *${_tituloCtrl.text.trim()}*\n'
-            '💰 Valor: *R\$ ${valor.toStringAsFixed(2)}*\n\n'
-            '🔗 ${pref.link}\n\nAceitamos PIX, cartão e boleto! 🥋';
-        await abrirWhatsApp(tel, msg);
-      }
+    if (tel != null) {
+      final msg = 'Olá${nomeContato != null ? ', $nomeContato' : ''}! Segue o link de pagamento da SM BJJ:\n\n'
+          '📋 *$titulo*\n'
+          '💰 Valor: *R\$ ${valor.toStringAsFixed(2)}*\n\n'
+          '🔗 $link\n\nAceitamos PIX, cartão e boleto! 🥋';
+      await abrirWhatsApp(tel, msg);
     }
   }
 
@@ -1019,7 +1172,7 @@ class _MensalidadeCard extends StatelessWidget {
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(mensalidade.alunoNome ?? aluno.nome, style: const TextStyle(fontWeight: FontWeight.w700)),
           if (mensalidade.dataPagamento != null)
-            Text('Pago em ${mensalidade.dataPagamento}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600))
+            Text('Pago em ${formatDataBr(mensalidade.dataPagamento)}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600))
           else if (mensalidade.observacao != null)
             Text(mensalidade.observacao!, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
         ])),

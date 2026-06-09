@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'supabase_service.dart';
 
 class MercadoPagoService {
   static final MercadoPagoService instance = MercadoPagoService._();
@@ -8,6 +9,7 @@ class MercadoPagoService {
 
   static const _baseUrl = 'https://api.mercadopago.com';
   static const _prefKey = 'mp_access_token';
+  static const _webhookUrl = '$supabaseUrl/functions/v1/mp-webhook';
 
   Future<String?> getAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
@@ -17,11 +19,18 @@ class MercadoPagoService {
   Future<void> saveAccessToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_prefKey, token);
+    // Persiste no Supabase para a Edge Function (webhook) usar
+    try {
+      await supabase.from('financeiro_config').update({'mp_access_token': token}).eq('id', 1);
+    } catch (_) {}
   }
 
   Future<void> clearAccessToken() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_prefKey);
+    try {
+      await supabase.from('financeiro_config').update({'mp_access_token': null}).eq('id', 1);
+    } catch (_) {}
   }
 
   Future<bool> validarToken(String token) async {
@@ -63,6 +72,7 @@ class MercadoPagoService {
       },
       'statement_descriptor': 'SM BJJ',
       if (metadados != null) 'metadata': metadados,
+      'notification_url': _webhookUrl,
     };
 
     try {
@@ -89,23 +99,34 @@ class MercadoPagoService {
     }
   }
 
-  /// Consulta pagamentos de uma preferência
+  /// Consulta pagamentos de uma preferência e retorna o status do mais recente.
+  /// Retorna 'approved', 'pending', 'rejected', etc. ou null se não encontrado.
   Future<String?> consultarStatus(String preferenciaId) async {
     final token = await getAccessToken();
     if (token == null) return null;
 
     try {
+      final uri = Uri.parse('$_baseUrl/v1/payments/search').replace(queryParameters: {
+        'preference_id': preferenciaId,
+        'sort': 'date_created',
+        'criteria': 'desc',
+        'limit': '5',
+      });
       final res = await http.get(
-        Uri.parse('$_baseUrl/v1/payments/search?preference_id=$preferenciaId'),
+        uri,
         headers: {'Authorization': 'Bearer $token'},
       ).timeout(const Duration(seconds: 10));
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
         final results = data['results'] as List?;
-        if (results != null && results.isNotEmpty) {
-          return results.first['status'] as String?;
-        }
+        if (results == null || results.isEmpty) return null;
+        // Prioriza 'approved' — pode haver tentativas rejeitadas antes
+        final aprovado = results.firstWhere(
+          (r) => r['status'] == 'approved',
+          orElse: () => results.first,
+        );
+        return aprovado['status'] as String?;
       }
       return null;
     } catch (_) {

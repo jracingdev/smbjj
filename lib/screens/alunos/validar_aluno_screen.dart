@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/financeiro/mensalidade_gerador_service.dart';
 import '../../core/theme.dart';
 import '../../models/aluno.dart';
+import '../../models/financeiro_config.dart';
 import '../../models/turma.dart';
 import '../../repositories/aluno_repository.dart';
 import '../../repositories/financeiro_config_repository.dart';
@@ -10,6 +11,7 @@ import '../../utils/bjj_utils.dart';
 import '../../utils/date_utils.dart';
 import '../../utils/turma_utils.dart';
 import '../../widgets/faixa_badge.dart';
+import '../../widgets/mes_ano_picker.dart';
 
 class ValidarAlunoScreen extends StatefulWidget {
   final Aluno aluno;
@@ -30,12 +32,15 @@ class _ValidarAlunoScreenState extends State<ValidarAlunoScreen> {
   int _grau = 0;
   bool _loading = true;
   bool _salvando = false;
+  FinanceiroConfig _config = const FinanceiroConfig();
 
   bool _bolsista = false;
   final _pctBolsaCtrl = TextEditingController(text: '0');
   final _grupoCtrl = TextEditingController();
   final _cpfPaganteCtrl = TextEditingController();
   bool _proRataPrimeiroMes = true;
+  bool _iniciante = false;
+  String? _dataInicioAulas;
 
   @override
   void initState() {
@@ -46,6 +51,9 @@ class _ValidarAlunoScreenState extends State<ValidarAlunoScreen> {
     _pctBolsaCtrl.text = widget.aluno.percentualBolsa.toStringAsFixed(0);
     _grupoCtrl.text = widget.aluno.grupoFamiliar ?? '';
     _cpfPaganteCtrl.text = widget.aluno.cpfPagante ?? '';
+    _iniciante = widget.aluno.iniciante;
+    _dataInicioAulas = widget.aluno.dataInicioAulas;
+    _proRataPrimeiroMes = widget.aluno.proRataPrimeiroMes;
     _load();
   }
 
@@ -58,8 +66,14 @@ class _ValidarAlunoScreenState extends State<ValidarAlunoScreen> {
   }
 
   Future<void> _load() async {
-    _turmas = await _turmaRepo.listar();
-    final atuais = await _turmaRepo.turmasDoAluno(widget.aluno.id);
+    final results = await Future.wait([
+      _turmaRepo.listar(apenasAtivas: false),
+      _turmaRepo.turmasDoAluno(widget.aluno.id),
+      _configRepo.obter(),
+    ]);
+    _turmas = results[0] as List<Turma>;
+    final atuais = results[1] as List<Turma>;
+    _config = results[2] as FinanceiroConfig;
     _turmasSelecionadas.addAll(atuais.map((t) => t.id));
     if (mounted) setState(() => _loading = false);
   }
@@ -82,50 +96,63 @@ class _ValidarAlunoScreenState extends State<ValidarAlunoScreen> {
     final primeiraValidacao = !widget.aluno.cadastroValidado;
     final hoje = DateTime.now().toIso8601String().split('T').first;
 
-    final atualizado = widget.aluno.copyWith(
-      faixa: _faixa,
-      grau: _grau,
-      bolsista: _bolsista,
-      percentualBolsa: double.tryParse(_pctBolsaCtrl.text) ?? 0,
-      grupoFamiliar: _grupoCtrl.text.trim().isEmpty ? null : _grupoCtrl.text.trim(),
-      cpfPagante: _cpfPaganteCtrl.text.trim().isEmpty ? null : _cpfPaganteCtrl.text.trim(),
-      dataInicioCobranca: widget.aluno.dataInicioCobranca ?? hoje,
-      cobrancaAtiva: true,
-    );
-    await _alunoRepo.atualizar(atualizado);
-
-    if (widget.aluno.cadastroValidado) {
-      await _turmaRepo.substituirTurmasAluno(widget.aluno.id, _turmasSelecionadas.toList());
-    } else {
-      await _alunoRepo.validarComTurmas(widget.aluno.id, _turmasSelecionadas.toList());
-      final cfg = await _configRepo.obter();
-      final alunoDb = await _alunoRepo.buscarPorId(widget.aluno.id) ?? atualizado.copyWith(cadastroValidado: true, ativo: true);
-      final n = await _gerador.gerarParaAlunoValidado(
-        alunoDb,
-        cfg,
-        proRataPrimeiroMes: _proRataPrimeiroMes,
+    try {
+      final atualizado = widget.aluno.copyWith(
+        faixa: _faixa,
+        grau: _grau,
+        bolsista: _bolsista,
+        percentualBolsa: double.tryParse(_pctBolsaCtrl.text) ?? 0,
+        grupoFamiliar: _grupoCtrl.text.trim().isEmpty ? null : _grupoCtrl.text.trim(),
+        cpfPagante: _cpfPaganteCtrl.text.trim().isEmpty ? null : _cpfPaganteCtrl.text.trim(),
+        dataInicioCobranca: widget.aluno.dataInicioCobranca ?? hoje,
+        cobrancaAtiva: true,
+        dataInicioAulas: _dataInicioAulas,
+        iniciante: _iniciante,
+        proRataPrimeiroMes: _iniciante ? _proRataPrimeiroMes : false,
       );
-      if (mounted && primeiraValidacao) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$n mensalidade(s) gerada(s) para o ano vigente.'), backgroundColor: verdeEscuro),
-        );
-      }
-    }
+      await _alunoRepo.atualizar(atualizado);
 
-    if (mounted) {
-      Navigator.pop(context, true);
-      if (!primeiraValidacao || widget.aluno.cadastroValidado) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              widget.aluno.cadastroValidado
-                  ? 'Turmas de ${widget.aluno.nome} atualizadas!'
-                  : '${widget.aluno.nome} validado e incluído na turma!',
+      if (widget.aluno.cadastroValidado) {
+        await _turmaRepo.substituirTurmasAluno(widget.aluno.id, _turmasSelecionadas.toList());
+      } else {
+        await _alunoRepo.validarComTurmas(widget.aluno.id, _turmasSelecionadas.toList());
+        final cfg = await _configRepo.obter();
+        final alunoDb = await _alunoRepo.buscarPorId(widget.aluno.id) ?? atualizado.copyWith(cadastroValidado: true, ativo: true);
+        final n = await _gerador.gerarParaAlunoValidado(
+          alunoDb,
+          cfg,
+          proRataPrimeiroMes: atualizado.proRataPrimeiroMes,
+        );
+        if (mounted && primeiraValidacao) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('$n mensalidade(s) gerada(s) para o ano vigente.'), backgroundColor: verdeEscuro),
+          );
+        }
+      }
+
+      if (mounted) {
+        Navigator.pop(context, true);
+        if (!primeiraValidacao || widget.aluno.cadastroValidado) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                widget.aluno.cadastroValidado
+                    ? 'Turmas de ${widget.aluno.nome} atualizadas!'
+                    : '${widget.aluno.nome} validado e incluído na turma!',
+              ),
+              backgroundColor: verdeEscuro,
             ),
-            backgroundColor: verdeEscuro,
-          ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao salvar: $e'), backgroundColor: Colors.red),
         );
       }
+    } finally {
+      if (mounted) setState(() => _salvando = false);
     }
   }
 
@@ -205,6 +232,32 @@ class _ValidarAlunoScreenState extends State<ValidarAlunoScreen> {
                     ),
                   ),
                 ]),
+                const SizedBox(height: 20),
+                const Text('Início nas aulas', style: TextStyle(fontWeight: FontWeight.w800)),
+                const SizedBox(height: 8),
+                MesAnoPicker(
+                  value: _dataInicioAulas,
+                  onChanged: (v) => setState(() => _dataInicioAulas = v),
+                ),
+                const SizedBox(height: 8),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Aluno iniciante'),
+                  subtitle: const Text('Marque para aplicar pro-rata no primeiro mês'),
+                  value: _iniciante,
+                  onChanged: (v) => setState(() {
+                    _iniciante = v;
+                    if (!v) _proRataPrimeiroMes = false;
+                  }),
+                ),
+                if (_iniciante && _config.proRataAtivo)
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: _proRataPrimeiroMes,
+                    onChanged: (v) => setState(() => _proRataPrimeiroMes = v ?? false),
+                    title: const Text('Pró-rata no primeiro mês', style: TextStyle(fontSize: 14)),
+                    subtitle: const Text('Cobra proporcional aos dias restantes no mês de entrada'),
+                  ),
                 if (primeira) ...[
                   const SizedBox(height: 20),
                   const Text('Cobrança e descontos', style: TextStyle(fontWeight: FontWeight.w800)),
@@ -241,13 +294,6 @@ class _ValidarAlunoScreenState extends State<ValidarAlunoScreen> {
                       labelText: 'CPF do pagante',
                       helperText: 'Desconto se o mesmo responsável paga mais de um aluno',
                     ),
-                  ),
-                  CheckboxListTile(
-                    contentPadding: EdgeInsets.zero,
-                    value: _proRataPrimeiroMes,
-                    onChanged: (v) => setState(() => _proRataPrimeiroMes = v ?? true),
-                    title: const Text('Pró-rata no primeiro mês', style: TextStyle(fontSize: 14)),
-                    subtitle: const Text('Cobra proporcional aos dias restantes no mês de entrada'),
                   ),
                 ],
                 const SizedBox(height: 20),

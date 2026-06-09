@@ -18,6 +18,8 @@ import '../../core/storage_service.dart';
 import '../../core/supabase_errors.dart';
 import '../../repositories/pedido_repository.dart';
 import '../../repositories/produto_repository.dart';
+import '../../utils/date_utils.dart';
+import '../../utils/loja_tamanhos.dart';
 import 'pedidos_admin_screen.dart';
 import 'meus_pedidos_screen.dart';
 
@@ -182,7 +184,12 @@ class _LojaScreenState extends State<LojaScreen> {
                   ? Center(child: Text('Nenhum produto encontrado.', style: TextStyle(color: Colors.grey.shade500)))
                   : GridView.builder(
                       padding: const EdgeInsets.fromLTRB(12, 0, 12, 80),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 0.7, crossAxisSpacing: 10, mainAxisSpacing: 10),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        childAspectRatio: 0.82,
+                        crossAxisSpacing: 10,
+                        mainAxisSpacing: 10,
+                      ),
                       itemCount: _filtrados.length,
                       itemBuilder: (_, i) {
                         final p = _filtrados[i];
@@ -417,8 +424,22 @@ class _SolicitarSheetState extends State<_SolicitarSheet> {
         // Tamanho
         const Text('Tamanho (opcional):', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
         const SizedBox(height: 6),
-        TextField(onChanged: (v) => setState(() => _tamanho = v.isEmpty ? null : v),
-          decoration: const InputDecoration(hintText: 'Ex: A2, M, G...', isDense: true)),
+        if (p.categoria == 'kimono') ...[
+          DropdownButtonFormField<String>(
+            value: _tamanho,
+            decoration: const InputDecoration(hintText: 'Selecione o tamanho', isDense: true),
+            items: [
+              const DropdownMenuItem(value: null, child: Text('—')),
+              ...tamanhosKimonoInfantil.map((t) => DropdownMenuItem(value: t, child: Text('Infantil $t'))),
+              ...tamanhosKimonoAdulto.map((t) => DropdownMenuItem(value: t, child: Text('Adulto $t'))),
+            ],
+            onChanged: (v) => setState(() => _tamanho = v),
+          ),
+        ] else
+          TextField(
+            onChanged: (v) => setState(() => _tamanho = v.isEmpty ? null : v),
+            decoration: const InputDecoration(hintText: 'Ex: P, M, G...', isDense: true),
+          ),
         const SizedBox(height: 12),
 
         // Quantidade
@@ -503,41 +524,121 @@ class _ProdutoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       clipBehavior: Clip.antiAlias,
+      margin: EdgeInsets.zero,
       child: Opacity(
-        opacity: produto.ativo ? 1.0 : 0.5,
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Expanded(child: _ProdutoImagem(
-            fotoUrl: produto.fotoUrl,
-            youtubeThumb: produto.youtubeThumbnail,
-            priorizarVideo: produto.temVideoYouTube,
-          )),
-          Padding(padding: const EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(produto.nome, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
-            const SizedBox(height: 4),
-            Chip(label: Text(catLabel, style: const TextStyle(fontSize: 10)), backgroundColor: catColor.withOpacity(0.15),
-              padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
-            const SizedBox(height: 4),
-            Text('R\$ ${produto.preco.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: verdeEscuro)),
-            Text(produto.prazoLabel, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-            if (isAdmin) Row(children: [
-              IconButton(onPressed: onEdit, icon: const Icon(Icons.edit_outlined, size: 18, color: verdeEscuro), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
-              const SizedBox(width: 8),
-              IconButton(onPressed: onDelete, icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red), padding: EdgeInsets.zero, constraints: const BoxConstraints()),
-            ]),
-            if (!isAdmin) ...[
-              const SizedBox(height: 6),
-              SizedBox(width: double.infinity, child: ElevatedButton.icon(
-                onPressed: onSolicitar,
-                icon: const Icon(Icons.shopping_bag_outlined, size: 14),
-                label: const Text('Comprar', style: TextStyle(fontSize: 12)),
-                style: ElevatedButton.styleFrom(
-                  visualDensity: VisualDensity.compact,
-                  backgroundColor: Colors.green.shade600,
-                ),
-              )),
-            ],
-          ])),
-        ]),
+        opacity: produto.ativo ? 1.0 : 0.55,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AspectRatio(
+              aspectRatio: 1,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  _ProdutoImagem(
+                    fotoUrl: produto.fotoUrl,
+                    youtubeThumb: produto.youtubeThumbnail,
+                    priorizarVideo: produto.temVideoYouTube,
+                  ),
+                  if (isAdmin && !produto.ativo)
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Text('Inativo', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                  if (isAdmin)
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: Row(
+                        children: [
+                          _CardActionButton(icon: Icons.edit_outlined, color: verdeEscuro, onTap: onEdit),
+                          const SizedBox(width: 4),
+                          _CardActionButton(icon: Icons.delete_outline, color: Colors.red, onTap: onDelete),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    produto.nome,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Chip(
+                        label: Text(catLabel, style: const TextStyle(fontSize: 10)),
+                        backgroundColor: catColor.withOpacity(0.15),
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      const Spacer(),
+                      Text(
+                        'R\$ ${produto.preco.toStringAsFixed(2)}',
+                        style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15, color: verdeEscuro),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(produto.prazoLabel, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                  if (!isAdmin) ...[
+                    const SizedBox(height: 8),
+                    ElevatedButton.icon(
+                      onPressed: onSolicitar,
+                      icon: const Icon(Icons.shopping_bag_outlined, size: 14),
+                      label: const Text('Comprar', style: TextStyle(fontSize: 12)),
+                      style: ElevatedButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        backgroundColor: Colors.green.shade600,
+                        minimumSize: const Size(double.infinity, 36),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CardActionButton extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final VoidCallback? onTap;
+  const _CardActionButton({required this.icon, required this.color, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withOpacity(0.92),
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Icon(icon, size: 18, color: color),
+        ),
       ),
     );
   }
@@ -548,7 +649,15 @@ class _PlaceholderImg extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
     color: Colors.grey.shade100,
-    child: const Icon(Icons.shopping_bag_outlined, size: 48, color: Colors.grey),
+    alignment: Alignment.center,
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.shopping_bag_outlined, size: 56, color: Colors.grey.shade400),
+        const SizedBox(height: 6),
+        Text('Sem foto', style: TextStyle(fontSize: 11, color: Colors.grey.shade500)),
+      ],
+    ),
   );
 }
 
@@ -574,21 +683,47 @@ class _ProdutoImagem extends StatelessWidget {
     if (path != null) {
       final remote = path.startsWith('http://') || path.startsWith('https://');
       if (remote) {
-        return Image.network(
-          path,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _fallbackYoutube(youtubeThumb),
+        return Container(
+          color: Colors.grey.shade100,
+          width: double.infinity,
+          height: double.infinity,
+          child: Image.network(
+            path,
+            fit: BoxFit.contain,
+            width: double.infinity,
+            height: double.infinity,
+            errorBuilder: (_, __, ___) => _fallbackYoutube(youtubeThumb),
+          ),
         );
       }
-      return imageWidgetFromPath(path, fit: BoxFit.cover, errorWidget: _fallbackYoutube(youtubeThumb));
+      return Container(
+        color: Colors.grey.shade100,
+        width: double.infinity,
+        height: double.infinity,
+        child: imageWidgetFromPath(
+          path,
+          fit: BoxFit.contain,
+          errorWidget: _fallbackYoutube(youtubeThumb),
+        ),
+      );
     }
 
     return _fallbackYoutube(youtubeThumb);
   }
 
   Widget _youtubeThumbWidget(String thumb) => Stack(fit: StackFit.expand, children: [
-    Image.network(thumb, fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => const _PlaceholderImg()),
+    Container(
+      color: Colors.grey.shade100,
+      width: double.infinity,
+      height: double.infinity,
+      child: Image.network(
+        thumb,
+        fit: BoxFit.contain,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (_, __, ___) => const _PlaceholderImg(),
+      ),
+    ),
     const Center(child: Icon(Icons.play_circle_filled, color: Colors.white, size: 40)),
   ]);
 
@@ -628,7 +763,7 @@ class _ProdutoSheetState extends State<_ProdutoSheet> {
 
   // Cores e tamanhos comuns para sugestão
   static const _coresSugeridas = ['Branco', 'Preto', 'Azul', 'Verde', 'Cinza', 'Vermelho', 'Amarelo'];
-  static const _tamanhosSugeridos = ['PP', 'P', 'M', 'G', 'GG', 'A0', 'A1', 'A2', 'A3', 'A4'];
+  List<String> get _tamanhosSugeridos => tamanhosSugeridosProduto(_categoria);
 
   @override
   void initState() {
@@ -640,7 +775,7 @@ class _ProdutoSheetState extends State<_ProdutoSheet> {
       _descCtrl.text = p.descricao ?? '';
       _youtubeCtrl.text = p.youtubeUrl ?? '';
       _prazoDiasCtrl.text = p.prazoDias.toString();
-      _prazoDataCtrl.text = p.prazoData ?? '';
+      _prazoDataCtrl.text = p.prazoData != null ? formatDataBr(p.prazoData) : '';
       _categoria = p.categoria;
       _prazoEntrega = p.prazoEntrega;
       _ativo = p.ativo;
@@ -670,8 +805,38 @@ class _ProdutoSheetState extends State<_ProdutoSheet> {
   }
 
   Future<void> _pickFoto() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('Foto do produto', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Escolher da galeria'),
+              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+            ),
+            if (!kIsWeb)
+              ListTile(
+                leading: const Icon(Icons.camera_alt_outlined),
+                title: const Text('Tirar foto agora'),
+                onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (source == null) return;
     final picker = ImagePicker();
-    final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    final img = await picker.pickImage(source: source, imageQuality: 80);
     if (img == null) return;
     final bytes = await img.readAsBytes();
     final nome = img.name.toLowerCase();
@@ -771,7 +936,11 @@ class _ProdutoSheetState extends State<_ProdutoSheet> {
       youtubeUrl: _youtubeCtrl.text.trim().isEmpty ? null : _youtubeCtrl.text.trim(),
       prazoEntrega: _prazoEntrega,
       prazoDias: int.tryParse(_prazoDiasCtrl.text) ?? 0,
-      prazoData: _prazoDataCtrl.text.trim().isEmpty ? null : _prazoDataCtrl.text.trim(),
+      prazoData: () {
+        final t = _prazoDataCtrl.text.trim();
+        if (t.isEmpty) return null;
+        return dataCompletaParaIso(t) ?? t;
+      }(),
       ativo: _ativo,
       createdAt: widget.produto?.createdAt,
     );
@@ -922,9 +1091,12 @@ class _ProdutoSheetState extends State<_ProdutoSheet> {
         ],
         if (_prazoEntrega == 'data') ...[
           const SizedBox(height: 8),
-          TextField(controller: _prazoDataCtrl,
-            decoration: const InputDecoration(labelText: 'Data de entrega (DD/MM/AAAA)', isDense: true),
-            keyboardType: TextInputType.datetime),
+          TextField(
+            controller: _prazoDataCtrl,
+            decoration: InputDecoration(labelText: 'Data de entrega ($hintDataCompleta)', isDense: true),
+            inputFormatters: [DataNascimentoInputFormatter()],
+            keyboardType: TextInputType.number,
+          ),
         ],
         const SizedBox(height: 10),
         SwitchListTile(title: const Text('Produto ativo'), value: _ativo,

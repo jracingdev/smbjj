@@ -58,7 +58,8 @@ class MensalidadeGeradorService {
 
       var valor = base;
       var proRata = false;
-      if (mes == inicio.month && ano == inicio.year && proRataPrimeiroMes) {
+      final deveAplicarProRata = proRataPrimeiroMes && aluno.proRataPrimeiroMes && aluno.iniciante && config.proRataAtivo;
+      if (mes == inicio.month && ano == inicio.year && deveAplicarProRata) {
         valor = aplicarProRata(base, inicio);
         proRata = valor < base;
       }

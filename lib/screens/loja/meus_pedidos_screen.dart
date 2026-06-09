@@ -9,6 +9,7 @@ import '../../models/pedido.dart';
 import '../../core/supabase_errors.dart';
 import '../../repositories/pedido_repository.dart';
 import '../../widgets/pedidos_erro_view.dart';
+import '../../utils/date_utils.dart';
 
 class MeusPedidosScreen extends StatefulWidget {
   const MeusPedidosScreen({super.key});
@@ -205,7 +206,7 @@ class _MeuPedidoCardState extends State<_MeuPedidoCard> {
                   ],
                   if (p.dataEntregaEstimada != null) ...[
                     const SizedBox(height: 4),
-                    Text('📅 Previsão de entrega: ${p.dataEntregaEstimada}',
+                    Text('📅 Previsão de entrega: ${formatDataBr(p.dataEntregaEstimada)}',
                         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                   ],
                   if (p.linkRastreamento != null) ...[

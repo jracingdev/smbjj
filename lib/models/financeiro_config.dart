@@ -8,6 +8,7 @@ class FinanceiroConfig {
   final double descontoMesmoPagantePercent;
   final int diaVencimento;
   final List<RegraFinanceira> regrasExtras;
+  final bool proRataAtivo;
 
   const FinanceiroConfig({
     this.valorAdulto = 110,
@@ -17,6 +18,7 @@ class FinanceiroConfig {
     this.descontoMesmoPagantePercent = 5,
     this.diaVencimento = 10,
     this.regrasExtras = const [],
+    this.proRataAtivo = true,
   });
 
   static List<RegraFinanceira> _parseRegras(dynamic raw) {
@@ -39,6 +41,7 @@ class FinanceiroConfig {
       descontoMesmoPagantePercent: (m['desconto_mesmo_pagante_percent'] as num?)?.toDouble() ?? 5,
       diaVencimento: m['dia_vencimento'] as int? ?? 10,
       regrasExtras: _parseRegras(m['regras_extras']),
+      proRataAtivo: m['pro_rata_ativo'] as bool? ?? true,
     );
   }
 
@@ -51,6 +54,7 @@ class FinanceiroConfig {
         'desconto_mesmo_pagante_percent': descontoMesmoPagantePercent,
         'dia_vencimento': diaVencimento,
         'regras_extras': regrasExtras.map((r) => r.toMap()).toList(),
+        'pro_rata_ativo': proRataAtivo,
         'updated_at': DateTime.now().toIso8601String(),
       };
 

@@ -132,6 +132,8 @@ flutter build web --release --base-href "/smbjj/"
 # copiar build/web para branch gh-pages e push
 ```
 
+**Preview de link (WhatsApp / redes):** as tags Open Graph e Twitter Card ficam em `web/index.html` (título, descrição, imagem em URL absoluta). Após publicar na `gh-pages`, valide e force nova leitura do cache em [Facebook Sharing Debugger](https://developers.facebook.com/tools/debug/) com a URL `https://jracingdev.github.io/smbjj/` (o WhatsApp usa o mesmo cache). Pastas locais `gh-deploy/` e `_gh_pages_deploy/` na raiz do disco são cópias antigas de build — a fonte é `ct_sm_bjj/web/`.
+
 ---
 
 *Última atualização desta auditoria: release 1.3.0 — executar `supabase_financeiro.sql` no Supabase*

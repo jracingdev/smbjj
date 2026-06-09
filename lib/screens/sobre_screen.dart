@@ -4,6 +4,7 @@ import '../core/app_version.dart';
 import '../core/constants.dart';
 import '../core/theme.dart';
 import '../widgets/gft_logo_image.dart';
+import '../widgets/contatos_card.dart';
 
 class SobreScreen extends StatelessWidget {
   const SobreScreen({super.key});
@@ -31,7 +32,7 @@ class SobreScreen extends StatelessWidget {
           Text('Academia de Jiu-Jitsu · desde $academiaFundacao',
               style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
           const SizedBox(height: 6),
-          Text('Versão ${AppVersion.version} (build ${AppVersion.build})',
+          Text('Versão ${AppVersion.label}',
               style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
 
           const SizedBox(height: 24),
@@ -68,6 +69,9 @@ class SobreScreen extends StatelessWidget {
             _infoRow(Icons.grade, professorGraduacao),
             _infoRow(Icons.badge_outlined, 'Registro: $professorRegistro'),
           ])),
+
+          const SizedBox(height: 16),
+          const ContatosCard(),
 
           const SizedBox(height: 16),
 

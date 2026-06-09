@@ -2,11 +2,32 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
     <uses-permission android:name="android.permission.USE_FINGERPRINT"/>
     <uses-permission android:name="android.permission.USE_FACE_LOCK"/>
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+
+    <queries>
+        <!-- Permite abrir links HTTPS (Mercado Pago, etc.) -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
+        <!-- Permite abrir links HTTP -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="http"/>
+        </intent>
+        <!-- Permite abrir WhatsApp -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="whatsapp"/>
+        </intent>
+        <package android:name="com.whatsapp"/>
+        <package android:name="com.whatsapp.w4b"/>
+    </queries>
 
     <application
         android:label="CT SM BJJ Academia"
@@ -43,6 +64,10 @@
                 <data android:scheme="io.supabase.flutter" android:host="callback"/>
             </intent-filter>
         </activity>
+        <activity
+            android:name="com.yalantis.ucrop.UCropActivity"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar"/>
 
         <meta-data
             android:name="flutterEmbedding"

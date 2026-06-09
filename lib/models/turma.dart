@@ -35,8 +35,16 @@ class Turma {
       horario: m['horario'] as String,
       diasSemana: dias,
       tipo: m['tipo'] as String? ?? 'mista',
-      ativa: (m['ativa'] ?? 1) == 1,
+      ativa: _parseAtiva(m['ativa']),
     );
+  }
+
+  static bool _parseAtiva(dynamic v) {
+    if (v == null) return true;
+    if (v is bool) return v;
+    if (v is num) return v != 0;
+    if (v is String) return v == 'true' || v == '1';
+    return true;
   }
 
   Map<String, dynamic> toMap() => {

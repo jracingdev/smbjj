@@ -12,6 +12,7 @@ class Mensalidade {
   final bool cancelada;
   final bool proRata;
   final String? createdAt;
+  final String? mpPreferenciaId;
 
   const Mensalidade({
     required this.id,
@@ -27,6 +28,7 @@ class Mensalidade {
     this.cancelada = false,
     this.proRata = false,
     this.createdAt,
+    this.mpPreferenciaId,
   });
 
   factory Mensalidade.fromMap(Map<String, dynamic> m) => Mensalidade(
@@ -43,6 +45,7 @@ class Mensalidade {
         cancelada: m['cancelada'] == true,
         proRata: m['pro_rata'] == true,
         createdAt: m['created_at'],
+        mpPreferenciaId: m['mp_preferencia_id'] as String?,
       );
 
   Map<String, dynamic> toMap() => {
@@ -60,6 +63,7 @@ class Mensalidade {
         'pro_rata': proRata,
         'created_at': createdAt ?? DateTime.now().toIso8601String(),
         'updated_at': DateTime.now().toIso8601String(),
+        'mp_preferencia_id': mpPreferenciaId,
       };
 
   Mensalidade copyWith({
@@ -70,6 +74,9 @@ class Mensalidade {
     bool? cancelada,
     bool? proRata,
     double? valorBase,
+    String? mpPreferenciaId,
+    bool limparMpPreferencia = false,
+    bool limparDataPagamento = false,
   }) =>
       Mensalidade(
         id: id,
@@ -80,10 +87,11 @@ class Mensalidade {
         valor: valor ?? this.valor,
         valorBase: valorBase ?? this.valorBase,
         status: status ?? this.status,
-        dataPagamento: dataPagamento ?? this.dataPagamento,
+        dataPagamento: limparDataPagamento ? null : (dataPagamento ?? this.dataPagamento),
         observacao: observacao ?? this.observacao,
         cancelada: cancelada ?? this.cancelada,
         proRata: proRata ?? this.proRata,
         createdAt: createdAt,
+        mpPreferenciaId: limparMpPreferencia ? null : (mpPreferenciaId ?? this.mpPreferenciaId),
       );
 }

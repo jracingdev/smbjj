@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import '../../core/supabase_errors.dart';
 import '../../core/theme.dart';
 import '../../models/financeiro_config.dart';
 import '../../models/regra_financeira.dart';
@@ -22,6 +23,7 @@ class _FinanceiroConfigScreenState extends State<FinanceiroConfigScreen> {
   final _paganteCtrl = TextEditingController();
   final _vencCtrl = TextEditingController();
   List<RegraFinanceira> _extras = [];
+  bool _proRataAtivo = true;
   bool _loading = true;
   bool _salvando = false;
 
@@ -51,6 +53,7 @@ class _FinanceiroConfigScreenState extends State<FinanceiroConfigScreen> {
     _paganteCtrl.text = c.descontoMesmoPagantePercent.toStringAsFixed(0);
     _vencCtrl.text = '${c.diaVencimento}';
     _extras = List.from(c.regrasExtras);
+    _proRataAtivo = c.proRataAtivo;
     if (mounted) setState(() => _loading = false);
   }
 
@@ -69,18 +72,30 @@ class _FinanceiroConfigScreenState extends State<FinanceiroConfigScreen> {
       descontoMesmoPagantePercent: dp,
       diaVencimento: venc.clamp(1, 28),
       regrasExtras: _extras,
+      proRataAtivo: _proRataAtivo,
     );
   }
 
   Future<void> _salvar() async {
+    if (_salvando || _loading) return;
     setState(() => _salvando = true);
-    await _repo.salvar(_montarConfig());
-    if (mounted) {
-      setState(() => _salvando = false);
+    try {
+      await _repo.salvar(_montarConfig());
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Regras e valores salvos!'), backgroundColor: verdeEscuro),
       );
       Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(mensagemErroSupabase(e, recurso: 'regras de cobrança')),
+          backgroundColor: Colors.red.shade700,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _salvando = false);
     }
   }
 
@@ -241,6 +256,21 @@ class _FinanceiroConfigScreenState extends State<FinanceiroConfigScreen> {
                 Text(
                   'Bolsistas: até 100% — configure no cadastro/validação de cada aluno.',
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 24),
+                const Text('Cobrança pro-rata', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                const SizedBox(height: 4),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _proRataAtivo,
+                  onChanged: (v) => setState(() => _proRataAtivo = v),
+                  title: Text(_proRataAtivo ? 'Pro-rata ativado' : 'Pro-rata desativado'),
+                  subtitle: Text(
+                    _proRataAtivo
+                        ? 'Alunos iniciantes pagam proporcional aos dias restantes no 1º mês.'
+                        : 'Todos os alunos pagam a mensalidade integralmente, independente do dia de entrada.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
                 ),
                 const SizedBox(height: 24),
                 Row(

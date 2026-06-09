@@ -1,7 +1,15 @@
 import 'package:flutter/services.dart';
 
-/// Aceita DD-MM-AAAA, DD/MM/AAAA ou ISO (AAAA-MM-DD) do banco.
-DateTime? parseDataNascimento(String? value) {
+/// Formatos de exibição no app:
+/// - Data completa: DD-MM-YYYY
+/// - Mês/ano: MM-YYYY
+/// O banco continua usando ISO (YYYY-MM-DD ou YYYY-MM).
+
+const String hintDataCompleta = 'DD-MM-YYYY';
+const String hintMesAno = 'MM-YYYY';
+
+/// Aceita DD-MM-YYYY, DD/MM/YYYY ou ISO (YYYY-MM-DD) do banco.
+DateTime? parseDataCompleta(String? value) {
   if (value == null || value.trim().isEmpty) return null;
   final s = value.trim();
 
@@ -40,19 +48,24 @@ DateTime? parseDataNascimento(String? value) {
   }
 }
 
-/// Exibe no formulário: DD-MM-AAAA.
-String formatDataNascimentoBr(String? value) {
+DateTime? parseDataNascimento(String? value) => parseDataCompleta(value);
+
+/// Exibe data completa: DD-MM-YYYY.
+String formatDataBr(String? value) {
   if (value == null || value.trim().isEmpty) return '';
-  final dt = parseDataNascimento(value);
+  final dt = parseDataCompleta(value);
   if (dt == null) return value.trim();
   final d = dt.day.toString().padLeft(2, '0');
   final m = dt.month.toString().padLeft(2, '0');
   return '$d-$m-${dt.year}';
 }
 
-/// Salva no Supabase como AAAA-MM-DD.
-String? dataNascimentoParaIso(String? input) {
-  final dt = parseDataNascimento(input);
+/// Alias — nascimento e demais datas completas usam o mesmo formato.
+String formatDataNascimentoBr(String? value) => formatDataBr(value);
+
+/// Salva no Supabase como YYYY-MM-DD.
+String? dataCompletaParaIso(String? input) {
+  final dt = parseDataCompleta(input);
   if (dt == null) return null;
   final y = dt.year.toString().padLeft(4, '0');
   final m = dt.month.toString().padLeft(2, '0');
@@ -60,9 +73,58 @@ String? dataNascimentoParaIso(String? input) {
   return '$y-$m-$d';
 }
 
-const String hintDataNascimento = 'DD-MM-AAAA';
+String? dataNascimentoParaIso(String? input) => dataCompletaParaIso(input);
 
-/// Máscara enquanto digita: 99-99-9999
+const String hintDataNascimento = hintDataCompleta;
+
+/// Parse mês/ano: YYYY-MM (banco), MM-YYYY ou MM/YYYY (entrada).
+(int mes, int ano)? parseMesAno(String? value) {
+  if (value == null || value.trim().isEmpty) return null;
+  final s = value.trim();
+
+  final iso = RegExp(r'^(\d{4})-(\d{1,2})$').firstMatch(s);
+  if (iso != null) {
+    final ano = int.tryParse(iso.group(1)!);
+    final mes = int.tryParse(iso.group(2)!);
+    if (ano == null || mes == null || mes < 1 || mes > 12) return null;
+    return (mes, ano);
+  }
+
+  final br = RegExp(r'^(\d{1,2})[/-](\d{4})$').firstMatch(s);
+  if (br != null) {
+    final mes = int.tryParse(br.group(1)!);
+    final ano = int.tryParse(br.group(2)!);
+    if (ano == null || mes == null || mes < 1 || mes > 12) return null;
+    return (mes, ano);
+  }
+
+  return null;
+}
+
+/// Grava no banco como YYYY-MM.
+String mesAnoParaIso(int mes, int ano) =>
+    '${ano.toString().padLeft(4, '0')}-${mes.toString().padLeft(2, '0')}';
+
+/// Exibe mês/ano: MM-YYYY.
+String formatMesAnoBr(String? value) {
+  if (value == null || value.trim().isEmpty) return '';
+  final p = parseMesAno(value);
+  if (p == null) return value.trim();
+  return formatMesAnoPartes(p.$1, p.$2);
+}
+
+/// MM-YYYY a partir de mês e ano numéricos.
+String formatMesAnoPartes(int mes, int ano) =>
+    '${mes.toString().padLeft(2, '0')}-$ano';
+
+/// Label: "Aluno desde: MM-YYYY"
+String labelAlunoDesde(String? dataInicioAulas) {
+  final fmt = formatMesAnoBr(dataInicioAulas);
+  if (fmt.isEmpty) return '';
+  return 'Aluno desde: $fmt';
+}
+
+/// Máscara enquanto digita data completa: DD-MM-YYYY
 class DataNascimentoInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {

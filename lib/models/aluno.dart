@@ -29,6 +29,12 @@
   final String? dataInterrupcaoCobranca;
   final String? justificativaInterrupcao;
   final double? valorMensalidadeCustom;
+  /// Formato YYYY-MM — quando o aluno começou a treinar.
+  final String? dataInicioAulas;
+  /// Marcado pelo admin — habilita pro-rata no primeiro mês.
+  final bool iniciante;
+  /// Preferência salva na validação: aplicar pro-rata no 1º mês.
+  final bool proRataPrimeiroMes;
 
   bool get cadastroCompleto =>
       nome.trim().isNotEmpty &&
@@ -68,6 +74,9 @@
     this.dataInterrupcaoCobranca,
     this.justificativaInterrupcao,
     this.valorMensalidadeCustom,
+    this.dataInicioAulas,
+    this.iniciante = false,
+    this.proRataPrimeiroMes = true,
   });
 
   factory Aluno.fromMap(Map<String, dynamic> m) => Aluno(
@@ -101,6 +110,9 @@
         dataInterrupcaoCobranca: m['data_interrupcao_cobranca'] as String?,
         justificativaInterrupcao: m['justificativa_interrupcao'] as String?,
         valorMensalidadeCustom: (m['valor_mensalidade_custom'] as num?)?.toDouble(),
+        dataInicioAulas: m['data_inicio_aulas'] as String?,
+        iniciante: m['iniciante'] == true,
+        proRataPrimeiroMes: m['pro_rata_primeiro_mes'] != false,
       );
 
   Map<String, dynamic> toMap() => {
@@ -133,6 +145,9 @@
         'data_interrupcao_cobranca': dataInterrupcaoCobranca,
         'justificativa_interrupcao': justificativaInterrupcao,
         'valor_mensalidade_custom': valorMensalidadeCustom,
+        'data_inicio_aulas': dataInicioAulas,
+        'iniciante': iniciante,
+        'pro_rata_primeiro_mes': proRataPrimeiroMes,
       };
 
   Aluno copyWith({
@@ -162,6 +177,9 @@
     String? dataInterrupcaoCobranca,
     String? justificativaInterrupcao,
     double? valorMensalidadeCustom,
+    String? dataInicioAulas,
+    bool? iniciante,
+    bool? proRataPrimeiroMes,
   }) =>
       Aluno(
         id: id,
@@ -192,5 +210,8 @@
         dataInterrupcaoCobranca: dataInterrupcaoCobranca ?? this.dataInterrupcaoCobranca,
         justificativaInterrupcao: justificativaInterrupcao ?? this.justificativaInterrupcao,
         valorMensalidadeCustom: valorMensalidadeCustom ?? this.valorMensalidadeCustom,
+        dataInicioAulas: dataInicioAulas ?? this.dataInicioAulas,
+        iniciante: iniciante ?? this.iniciante,
+        proRataPrimeiroMes: proRataPrimeiroMes ?? this.proRataPrimeiroMes,
       );
 }

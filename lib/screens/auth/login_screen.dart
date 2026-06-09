@@ -575,18 +575,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Entrar',
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.black87),
-                          ),
-                          Text(
-                            AppVersion.short,
-                            style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
-                          ),
-                        ],
+                      const Text(
+                        'Entrar',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.black87),
                       ),
                       const SizedBox(height: 8),
                       _chipPlataforma(),

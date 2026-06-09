@@ -6,6 +6,7 @@ import '../../core/auth/auth_provider.dart';
 import '../../core/theme.dart';
 import '../../models/aviso.dart';
 import '../../repositories/aviso_repository.dart';
+import '../../core/avisos/aviso_lido_service.dart';
 
 class AvisosScreen extends StatefulWidget {
   const AvisosScreen({super.key});
@@ -28,6 +29,9 @@ class _AvisosScreenState extends State<AvisosScreen> {
     setState(() => _loading = true);
     final isAdmin = context.read<AuthProvider>().isAdmin;
     final lista = await _repo.listar(apenasAtivos: !isAdmin);
+    if (!isAdmin && lista.isNotEmpty) {
+      await AvisoLidoService().marcarComoLidos(lista.map((a) => a.id));
+    }
     if (mounted) setState(() { _avisos = lista; _loading = false; });
   }
 

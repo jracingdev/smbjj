@@ -35,11 +35,18 @@ alter table public.alunos add column if not exists data_interrupcao_cobranca tex
 alter table public.alunos add column if not exists justificativa_interrupcao text;
 alter table public.alunos add column if not exists valor_mensalidade_custom numeric;
 
--- Mensalidades: cancelamento, pro-rata, base
+-- Mensalidades: cancelamento, pro-rata, base, MP
 alter table public.mensalidades add column if not exists cancelada boolean default false;
 alter table public.mensalidades add column if not exists pro_rata boolean default false;
 alter table public.mensalidades add column if not exists valor_base numeric;
 alter table public.mensalidades add column if not exists updated_at timestamptz default now();
+alter table public.mensalidades add column if not exists mp_preferencia_id text;
+
+-- Token MP salvo no banco para uso pela Edge Function (webhook)
+alter table public.financeiro_config add column if not exists mp_access_token text;
+
+-- Pro-rata configurável pelo admin
+alter table public.financeiro_config add column if not exists pro_rata_ativo boolean default true;
 
 -- Evita duplicar mês/ano por aluno
 create unique index if not exists mensalidades_aluno_mes_ano_uidx

@@ -11,6 +11,7 @@ import '../../utils/bjj_utils.dart';
 import '../../utils/date_utils.dart';
 import '../../widgets/faixa_badge.dart';
 import '../../widgets/turmas_aluno_card.dart';
+import '../../widgets/mes_ano_picker.dart';
 import '../../repositories/turma_repository.dart';
 import '../../models/turma.dart';
 
@@ -42,6 +43,7 @@ class _MeuCadastroScreenState extends State<MeuCadastroScreen> {
   late final _nascCtrl = TextEditingController();
 
   String _sexo = 'masculino';
+  String? _dataInicioAulas;
   Aluno? _existente;
 
   @override
@@ -69,7 +71,10 @@ class _MeuCadastroScreenState extends State<MeuCadastroScreen> {
     _cepCtrl.text = aluno?.cep ?? '';
     _pesoCtrl.text = aluno?.peso?.toString() ?? '';
     _nascCtrl.text = formatDataNascimentoBr(aluno?.dataNascimento);
-    if (aluno != null) _sexo = aluno.sexo;
+    if (aluno != null) {
+      _sexo = aluno.sexo;
+      _dataInicioAulas = aluno.dataInicioAulas;
+    }
     if (aluno != null && aluno.cadastroValidado) {
       TurmaRepository().turmasDoAluno(aluno.id).then((t) {
         if (mounted) setState(() => _turmas = t);
@@ -125,7 +130,7 @@ class _MeuCadastroScreenState extends State<MeuCadastroScreen> {
     final isoNasc = dataNascimentoParaIso(_nascCtrl.text);
     if (isoNasc == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Data de nascimento inválida. Use DD-MM-AAAA.')),
+        const SnackBar(content: Text('Data de nascimento inválida. Use DD-MM-YYYY.')),
       );
       return;
     }
@@ -144,6 +149,7 @@ class _MeuCadastroScreenState extends State<MeuCadastroScreen> {
     final auth = context.read<AuthProvider>();
     final user = auth.usuario!;
 
+    try {
     final dados = Aluno(
       id: _existente?.id ?? '',
       nome: _nomeCtrl.text.trim(),
@@ -163,6 +169,18 @@ class _MeuCadastroScreenState extends State<MeuCadastroScreen> {
       ativo: _existente?.ativo ?? false,
       cadastroValidado: _existente?.cadastroValidado ?? false,
       createdAt: _existente?.createdAt,
+      dataInicioAulas: _dataInicioAulas,
+      iniciante: _existente?.iniciante ?? false,
+      bolsista: _existente?.bolsista ?? false,
+      percentualBolsa: _existente?.percentualBolsa ?? 0,
+      grupoFamiliar: _existente?.grupoFamiliar,
+      cpfPagante: _existente?.cpfPagante,
+      cobrancaAtiva: _existente?.cobrancaAtiva ?? true,
+      dataInicioCobranca: _existente?.dataInicioCobranca,
+      dataInterrupcaoCobranca: _existente?.dataInterrupcaoCobranca,
+      justificativaInterrupcao: _existente?.justificativaInterrupcao,
+      valorMensalidadeCustom: _existente?.valorMensalidadeCustom,
+      fotoUrl: _existente?.fotoUrl,
     );
 
     Aluno salvo;
@@ -175,21 +193,32 @@ class _MeuCadastroScreenState extends State<MeuCadastroScreen> {
 
     await auth.vincularAlunoSalvo(salvo);
 
-    if (mounted) {
-      setState(() => _loading = false);
-      if (!widget.editar) {
+    if (!mounted) return;
+    if (!widget.editar) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Cadastro enviado! Aguarde a validação do professor.'),
+          backgroundColor: verdeEscuro,
+        ),
+      );
+    } else {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cadastro atualizado.'), backgroundColor: verdeEscuro),
+      );
+    }
+    } catch (e) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Cadastro enviado! Aguarde a validação do professor.'),
-            backgroundColor: verdeEscuro,
+          SnackBar(
+            content: Text('Erro ao salvar cadastro: $e'),
+            backgroundColor: Colors.red.shade700,
+            duration: const Duration(seconds: 6),
           ),
         );
-      } else {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cadastro atualizado.'), backgroundColor: verdeEscuro),
-        );
       }
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
@@ -318,6 +347,12 @@ class _MeuCadastroScreenState extends State<MeuCadastroScreen> {
             ]),
             _campo(_telefoneCtrl, 'Telefone *', type: TextInputType.phone),
             _campo(_pesoCtrl, 'Peso (kg)', type: TextInputType.number),
+            const SizedBox(height: 16),
+            MesAnoPicker(
+              label: 'Quando começou a treinar?',
+              value: _dataInicioAulas,
+              onChanged: (v) => setState(() => _dataInicioAulas = v),
+            ),
             const Padding(
               padding: EdgeInsets.only(top: 16, bottom: 8),
               child: Text('Responsável (obrigatório se menor de 18)', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),

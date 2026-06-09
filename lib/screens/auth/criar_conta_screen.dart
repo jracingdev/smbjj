@@ -18,7 +18,6 @@ class _CriarContaScreenState extends State<CriarContaScreen> {
   final _senhaCtrl = TextEditingController();
   final _confirmaSenhaCtrl = TextEditingController();
   bool _loading = false;
-  bool _aguardandoGoogle = false;
   String? _erro;
   String? _sucesso;
   AuthProvider? _authProv;
@@ -103,7 +102,6 @@ class _CriarContaScreenState extends State<CriarContaScreen> {
   Future<void> _criarComGoogle() async {
     setState(() {
       _loading = true;
-      _aguardandoGoogle = true;
       _erro = null;
       _sucesso = null;
     });
@@ -113,13 +111,9 @@ class _CriarContaScreenState extends State<CriarContaScreen> {
       setState(() {
         _erro = result.message;
         _loading = false;
-        _aguardandoGoogle = false;
       });
     } else if (result.status != AuthStatus.oauthStarted) {
-      setState(() {
-        _loading = false;
-        _aguardandoGoogle = false;
-      });
+      setState(() => _loading = false);
     }
   }
 

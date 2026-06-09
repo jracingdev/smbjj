@@ -21,6 +21,7 @@ import '../sobre_screen.dart';
 import '../../widgets/gft_logo_image.dart';
 import '../alunos/meu_cadastro_screen.dart';
 import '../../widgets/turmas_aluno_card.dart';
+import '../../widgets/contatos_card.dart';
 import '../../repositories/turma_repository.dart';
 import '../../models/turma.dart';
 
@@ -278,6 +279,13 @@ class _PerfilScreenState extends State<PerfilScreen> {
                     child: Text(isAdmin ? '👨‍🏫 Professor / Admin' : '🥋 Aluno',
                         style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
                   ),
+                  if (_aluno != null && labelAlunoDesde(_aluno!.dataInicioAulas).isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      labelAlunoDesde(_aluno!.dataInicioAulas),
+                      style: const TextStyle(color: Colors.white70, fontSize: 12, fontStyle: FontStyle.italic),
+                    ),
+                  ],
                   if (_aluno != null && _aluno!.cadastroValidado) ...[
                     const SizedBox(height: 12),
                     FaixaIlustrada(
@@ -328,6 +336,8 @@ class _PerfilScreenState extends State<PerfilScreen> {
                 const SizedBox(height: 10),
                 TurmasAlunoCard(turmas: _turmas),
                 const SizedBox(height: 20),
+                const ContatosCard(),
+                const SizedBox(height: 20),
               ],
 
               // Mensalidades (aluno)
@@ -345,8 +355,8 @@ class _PerfilScreenState extends State<PerfilScreen> {
                       }
                       return ListTile(
                         leading: Icon(icon, color: cor),
-                        title: Text('${meses[m.mes - 1]} de ${m.ano}', style: const TextStyle(fontWeight: FontWeight.w600)),
-                        subtitle: m.dataPagamento != null ? Text('Pago em ${m.dataPagamento}') : null,
+                        title: Text(formatMesAnoPartes(m.mes, m.ano), style: const TextStyle(fontWeight: FontWeight.w600)),
+                        subtitle: m.dataPagamento != null ? Text('Pago em ${formatDataBr(m.dataPagamento)}') : null,
                         trailing: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [
                           Text('R\$ ${m.valor.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w700)),
                           Text(m.status, style: TextStyle(fontSize: 11, color: cor)),
@@ -420,7 +430,10 @@ class _PerfilScreenState extends State<PerfilScreen> {
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SobreScreen())),
                 leading: const Icon(Icons.info_outline, color: verdeEscuro),
                 title: const Text('Sobre o App'),
-                subtitle: Text('${AppVersion.label} · $developerNome', style: const TextStyle(fontSize: 11)),
+                subtitle: Text(
+                  'APP NATIVO ${AppVersion.label} · $developerNome',
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+                ),
                 trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 tileColor: Colors.white,

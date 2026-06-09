@@ -4,11 +4,13 @@ import '../../core/theme.dart';
 import '../../models/aluno.dart';
 import '../../repositories/aluno_repository.dart';
 import '../../utils/bjj_utils.dart';
+import '../../utils/date_utils.dart';
 import '../../widgets/aluno_financeiro_sheet.dart';
 import '../../widgets/faixa_badge.dart';
 import 'aluno_form_screen.dart';
 import 'validar_aluno_screen.dart';
 import '../turmas/turmas_screen.dart';
+import '../presenca/presenca_admin_screen.dart';
 import '../../repositories/turma_repository.dart';
 import '../../models/turma.dart';
 
@@ -135,6 +137,11 @@ class AlunosScreenState extends State<AlunosScreen> {
       appBar: AppBar(
         title: Text('Alunos (${_alunos.where((a) => a.ativo).length} ativos)'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.fact_check_outlined),
+            tooltip: 'Chamada / presença',
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PresencaAdminScreen())),
+          ),
           IconButton(
             icon: const Icon(Icons.groups_outlined),
             tooltip: 'Gerenciar turmas',
@@ -308,6 +315,8 @@ class _AlunoCard extends StatelessWidget {
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                       Text(aluno.nome, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
                       Text('$categoria${idade != null ? ' · $idade anos' : ''}', style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+                      if (labelAlunoDesde(aluno.dataInicioAulas).isNotEmpty)
+                        Text(labelAlunoDesde(aluno.dataInicioAulas), style: TextStyle(color: Colors.grey.shade500, fontSize: 11)),
                     ]),
                   ),
                   FaixaBadge(faixa: aluno.faixa, grau: aluno.grau),
@@ -384,7 +393,6 @@ class _AlunoAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (fotoUrl != null && fotoUrl!.isNotEmpty) {
-      final isRemote = fotoUrl!.startsWith('http') || fotoUrl!.startsWith('blob:');
       final ImageProvider img = imageProviderFromPath(fotoUrl!);
       return CircleAvatar(radius: radius, backgroundImage: img,
           onBackgroundImageError: (_, __) {});

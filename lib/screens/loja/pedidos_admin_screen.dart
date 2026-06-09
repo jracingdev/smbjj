@@ -7,6 +7,7 @@ import '../../models/pedido.dart';
 import '../../core/supabase_errors.dart';
 import '../../repositories/pedido_repository.dart';
 import '../../widgets/pedidos_erro_view.dart';
+import '../../utils/date_utils.dart';
 
 class PedidosAdminScreen extends StatefulWidget {
   const PedidosAdminScreen({super.key});
@@ -192,7 +193,11 @@ class _PedidoAdminCardState extends State<_PedidoAdminCard> {
     final codCtrl = TextEditingController(text: widget.pedido.codigoRastreamento ?? '');
     final transpCtrl = TextEditingController(text: widget.pedido.transportadora ?? '');
     final linkCtrl = TextEditingController(text: widget.pedido.linkRastreamento ?? '');
-    final dataCtrl = TextEditingController(text: widget.pedido.dataEntregaEstimada ?? '');
+    final dataCtrl = TextEditingController(
+      text: widget.pedido.dataEntregaEstimada != null
+          ? formatDataBr(widget.pedido.dataEntregaEstimada)
+          : '',
+    );
 
     await showModalBottomSheet(
       context: context, isScrollControlled: true, useSafeArea: true,
@@ -210,7 +215,12 @@ class _PedidoAdminCardState extends State<_PedidoAdminCard> {
             const SizedBox(height: 10),
             TextField(controller: linkCtrl, decoration: const InputDecoration(labelText: 'Link de Rastreamento', hintText: 'https://...', isDense: true), keyboardType: TextInputType.url),
             const SizedBox(height: 10),
-            TextField(controller: dataCtrl, decoration: const InputDecoration(labelText: 'Previsão de Entrega', hintText: 'DD/MM/AAAA', isDense: true)),
+            TextField(
+              controller: dataCtrl,
+              decoration: InputDecoration(labelText: 'Previsão de Entrega', hintText: hintDataCompleta, isDense: true),
+              inputFormatters: [DataNascimentoInputFormatter()],
+              keyboardType: TextInputType.number,
+            ),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () async {
@@ -218,7 +228,11 @@ class _PedidoAdminCardState extends State<_PedidoAdminCard> {
                   codigo: codCtrl.text.trim().isEmpty ? null : codCtrl.text.trim(),
                   transportadora: transpCtrl.text.trim().isEmpty ? null : transpCtrl.text.trim(),
                   link: linkCtrl.text.trim().isEmpty ? null : linkCtrl.text.trim(),
-                  dataEntrega: dataCtrl.text.trim().isEmpty ? null : dataCtrl.text.trim(),
+                  dataEntrega: () {
+                    final t = dataCtrl.text.trim();
+                    if (t.isEmpty) return null;
+                    return dataCompletaParaIso(t) ?? t;
+                  }(),
                 );
                 widget.onUpdate();
                 if (ctx.mounted) Navigator.pop(ctx);
@@ -279,7 +293,7 @@ class _PedidoAdminCardState extends State<_PedidoAdminCard> {
             if (p.alunoTelefone != null) _infoRow(Icons.phone_outlined, 'Telefone', p.alunoTelefone!),
             if (p.alunoEmail != null) _infoRow(Icons.email_outlined, 'Email', p.alunoEmail!),
             if (p.observacoes != null) _infoRow(Icons.comment_outlined, 'Obs. aluno', p.observacoes!),
-            if (p.createdAt != null) _infoRow(Icons.access_time, 'Data pedido', p.createdAt!.substring(0, 10)),
+            if (p.createdAt != null) _infoRow(Icons.access_time, 'Data pedido', formatDataBr(p.createdAt!.substring(0, 10))),
 
             // Rastreamento
             if (p.codigoRastreamento != null) ...[
@@ -294,7 +308,8 @@ class _PedidoAdminCardState extends State<_PedidoAdminCard> {
                     child: Text('Código: ${p.codigoRastreamento} (toque p/ copiar)',
                         style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                   ),
-                  if (p.dataEntregaEstimada != null) Text('Previsão: ${p.dataEntregaEstimada}', style: const TextStyle(fontSize: 12)),
+                  if (p.dataEntregaEstimada != null)
+                    Text('Previsão: ${formatDataBr(p.dataEntregaEstimada)}', style: const TextStyle(fontSize: 12)),
                   if (p.linkRastreamento != null) GestureDetector(
                     onTap: () async {
                       final uri = Uri.tryParse(p.linkRastreamento!);

@@ -1,4 +1,6 @@
-﻿class Produto {
+﻿import '../utils/date_utils.dart';
+
+class Produto {
   final String id;
   final String nome;
   final String categoria; // kimono | faixa | camisa | short | outro
@@ -30,7 +32,7 @@
   String get prazoLabel {
     switch (prazoEntrega) {
       case 'dias': return 'Entrega em $prazoDias dia(s)';
-      case 'data': return 'Entrega: ${prazoData ?? '—'}';
+      case 'data': return 'Entrega: ${prazoData != null ? formatDataBr(prazoData) : '—'}';
       default: return 'Retirada imediata';
     }
   }

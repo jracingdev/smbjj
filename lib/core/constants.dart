@@ -2,8 +2,8 @@
 // CT SM BJJ — Constantes do App
 // ============================================================
 
-const String appVersion = '1.4.0';
-const String appBuild = '25';
+const String appVersion = '1.7.4';
+const String appBuild = '33';
 const String appName = 'CT SM BJJ';
 
 // Academia
@@ -14,6 +14,9 @@ const String professorNome = 'SANDRO DE OLIVEIRA MORAES';
 const String professorGraduacao = 'FAIXA PRETA 2° GRAUS';
 const String professorRegistro = 'CBJJ/IBJJF 144559';
 const String professorTelefone = '5521975396996'; // WhatsApp (código país + DDD + número)
+const String professorTelefoneExibicao = '21-97539-6996';
+const String professorInstagram = 'sandro.moraes.smbjj';
+const String studioInstagram = 'gfteamiraja_studioperformace';
 
 // Pagamento
 const String pixKey = 'sandroiraja@gmail.com';

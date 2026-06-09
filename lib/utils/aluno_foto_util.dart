@@ -1,12 +1,12 @@
-import 'dart:typed_data';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../core/storage_service.dart';
+import '../core/theme.dart';
 
-/// Escolhe foto (galeria ou câmera) e envia ao bucket `fotos/alunos/`.
+/// Escolhe foto (galeria ou câmera), recorta e envia ao bucket `fotos/alunos/`.
 Future<String?> escolherEEnviarFotoAluno({
   required BuildContext context,
   required String alunoId,
@@ -44,14 +44,43 @@ Future<String?> escolherEEnviarFotoAluno({
   if (source == null) return null;
 
   final picker = ImagePicker();
-  final img = await picker.pickImage(source: source, imageQuality: 85);
+  final img = await picker.pickImage(source: source, imageQuality: 90);
   if (img == null) return null;
 
-  final bytes = await img.readAsBytes();
-  var ext = 'jpg';
-  final nome = img.name.toLowerCase();
-  if (nome.endsWith('.png')) ext = 'png';
-  if (nome.endsWith('.webp')) ext = 'webp';
+  Uint8List bytes;
+  String ext;
+  String? localPath;
+
+  if (!kIsWeb) {
+    final cropped = await ImageCropper().cropImage(
+      sourcePath: img.path,
+      aspectRatio: const CropAspectRatio(ratioX: 1, ratioY: 1),
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Recortar foto',
+          toolbarColor: verdeEscuro,
+          toolbarWidgetColor: Colors.white,
+          initAspectRatio: CropAspectRatioPreset.square,
+          lockAspectRatio: true,
+        ),
+        IOSUiSettings(
+          title: 'Recortar foto',
+          aspectRatioLockEnabled: true,
+        ),
+      ],
+    );
+    if (cropped == null) return null;
+    bytes = await cropped.readAsBytes();
+    localPath = cropped.path;
+    ext = cropped.path.toLowerCase().endsWith('.png') ? 'png' : 'jpg';
+  } else {
+    bytes = await img.readAsBytes();
+    localPath = null;
+    ext = 'jpg';
+    final nome = img.name.toLowerCase();
+    if (nome.endsWith('.png')) ext = 'png';
+    if (nome.endsWith('.webp')) ext = 'webp';
+  }
 
   final urlRemota = fotoUrlAtual != null &&
           (fotoUrlAtual.startsWith('http://') || fotoUrlAtual.startsWith('https://'))
@@ -62,7 +91,7 @@ Future<String?> escolherEEnviarFotoAluno({
     pasta: 'alunos/$alunoId',
     bytes: bytes,
     extension: ext,
-    localPath: kIsWeb ? null : img.path,
+    localPath: localPath,
     urlAtual: urlRemota,
   );
 }

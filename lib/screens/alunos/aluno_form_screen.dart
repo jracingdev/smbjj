@@ -14,6 +14,8 @@ import '../../models/aluno.dart';
 import '../../repositories/aluno_repository.dart';
 import '../../utils/bjj_utils.dart';
 import '../../utils/date_utils.dart';
+import '../../widgets/mes_ano_picker.dart';
+import '../alunos/validar_aluno_screen.dart';
 
 class AlunoFormScreen extends StatefulWidget {
   final Aluno? aluno;
@@ -48,6 +50,8 @@ class _AlunoFormScreenState extends State<AlunoFormScreen> {
   String _faixa = 'branca';
   int _grau = 0;
   bool _ativo = true;
+  String? _dataInicioAulas;
+  bool _iniciante = false;
 
   @override
   void initState() {
@@ -70,6 +74,8 @@ class _AlunoFormScreenState extends State<AlunoFormScreen> {
       _grau = a.grau;
       _ativo = a.ativo;
       _fotoPath = a.fotoUrl;
+      _dataInicioAulas = a.dataInicioAulas;
+      _iniciante = a.iniciante;
     }
   }
 
@@ -175,7 +181,7 @@ class _AlunoFormScreenState extends State<AlunoFormScreen> {
     final isoNasc = dataNascimentoParaIso(_nascCtrl.text);
     if (isoNasc == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Data de nascimento inválida. Use DD-MM-AAAA.')),
+        const SnackBar(content: Text('Data de nascimento inválida. Use DD-MM-YYYY.')),
       );
       return;
     }
@@ -211,6 +217,17 @@ class _AlunoFormScreenState extends State<AlunoFormScreen> {
       ativo: _ativo,
       cadastroValidado: widget.aluno?.cadastroValidado ?? false,
       createdAt: widget.aluno?.createdAt,
+      dataInicioAulas: _dataInicioAulas,
+      iniciante: _iniciante,
+      bolsista: widget.aluno?.bolsista ?? false,
+      percentualBolsa: widget.aluno?.percentualBolsa ?? 0,
+      grupoFamiliar: widget.aluno?.grupoFamiliar,
+      cpfPagante: widget.aluno?.cpfPagante,
+      cobrancaAtiva: widget.aluno?.cobrancaAtiva ?? true,
+      dataInicioCobranca: widget.aluno?.dataInicioCobranca,
+      dataInterrupcaoCobranca: widget.aluno?.dataInterrupcaoCobranca,
+      justificativaInterrupcao: widget.aluno?.justificativaInterrupcao,
+      valorMensalidadeCustom: widget.aluno?.valorMensalidadeCustom,
     );
 
     if (widget.aluno != null) {
@@ -384,6 +401,34 @@ class _AlunoFormScreenState extends State<AlunoFormScreen> {
             activeColor: verdeEscuro,
             contentPadding: EdgeInsets.zero,
           ),
+
+          _secao('Início nas aulas'),
+          MesAnoPicker(
+            value: _dataInicioAulas,
+            onChanged: (v) => setState(() => _dataInicioAulas = v),
+          ),
+          const SizedBox(height: 8),
+          SwitchListTile(
+            title: const Text('Aluno iniciante'),
+            subtitle: const Text('Habilita pro-rata no primeiro mês de cobrança'),
+            value: _iniciante,
+            onChanged: (v) => setState(() => _iniciante = v),
+            activeColor: verdeEscuro,
+            contentPadding: EdgeInsets.zero,
+          ),
+          if (widget.aluno?.cadastroValidado == true) ...[
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => ValidarAlunoScreen(aluno: widget.aluno!)),
+                );
+              },
+              icon: const Icon(Icons.groups),
+              label: const Text('Gerenciar turmas'),
+            ),
+          ],
 
           const SizedBox(height: 24),
           ElevatedButton(

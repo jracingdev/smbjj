@@ -7,6 +7,7 @@ import '../../core/auth/auth_provider.dart';
 import '../../core/theme.dart';
 import '../../models/evento.dart';
 import '../../repositories/evento_repository.dart';
+import '../../utils/date_utils.dart';
 
 class CalendarioScreen extends StatefulWidget {
   const CalendarioScreen({super.key});
@@ -131,12 +132,7 @@ class _EventoCard extends StatelessWidget {
     final IconData icon = cfg['icon'] as IconData;
     final String label = cfg['label'] as String;
 
-    String dataFormatada;
-    try {
-      dataFormatada = DateFormat("dd 'de' MMMM 'de' yyyy", 'pt_BR').format(DateTime.parse(evento.data));
-    } catch (_) {
-      dataFormatada = evento.data;
-    }
+    final dataFormatada = formatDataBr(evento.data);
 
     return Opacity(
       opacity: dimmed ? 0.65 : 1.0,
@@ -219,7 +215,9 @@ class _EventoSheetState extends State<_EventoSheet> {
   final _repo = EventoRepository();
   final _uuid = const Uuid();
   late final _tituloCtrl = TextEditingController(text: widget.evento?.titulo ?? '');
-  late final _dataCtrl = TextEditingController(text: widget.evento?.data ?? '');
+  late final _dataCtrl = TextEditingController(
+    text: widget.evento?.data != null ? formatDataBr(widget.evento!.data) : '',
+  );
   late final _horaInicioCtrl = TextEditingController(text: widget.evento?.horaInicio ?? '');
   late final _horaFimCtrl = TextEditingController(text: widget.evento?.horaFim ?? '');
   late final _descCtrl = TextEditingController(text: widget.evento?.descricao ?? '');
@@ -250,7 +248,11 @@ class _EventoSheetState extends State<_EventoSheet> {
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
     );
-    if (picked != null) setState(() => _dataCtrl.text = DateFormat('yyyy-MM-dd').format(picked));
+    if (picked != null) {
+      setState(() => _dataCtrl.text = formatDataBr(
+        '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}',
+      ));
+    }
   }
 
   Future<void> _pickHora(TextEditingController ctrl) async {
@@ -266,11 +268,18 @@ class _EventoSheetState extends State<_EventoSheet> {
 
   Future<void> _salvar() async {
     if (_tituloCtrl.text.trim().isEmpty || _dataCtrl.text.isEmpty) return;
+    final dataIso = dataCompletaParaIso(_dataCtrl.text);
+    if (dataIso == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Data inválida. Use DD-MM-YYYY.')),
+      );
+      return;
+    }
     setState(() => _loading = true);
     final e = Evento(
       id: widget.evento?.id ?? _uuid.v4(),
       titulo: _tituloCtrl.text.trim(),
-      data: _dataCtrl.text,
+      data: dataIso,
       horaInicio: _horaInicioCtrl.text.trim().isEmpty ? null : _horaInicioCtrl.text.trim(),
       horaFim: _horaFimCtrl.text.trim().isEmpty ? null : _horaFimCtrl.text.trim(),
       tipo: _tipo,
@@ -313,7 +322,7 @@ class _EventoSheetState extends State<_EventoSheet> {
         // Data
         TextField(
           controller: _dataCtrl, readOnly: true, onTap: _pickData,
-          decoration: InputDecoration(labelText: 'Data *', isDense: true,
+          decoration: InputDecoration(labelText: 'Data * ($hintDataCompleta)', isDense: true,
             suffixIcon: IconButton(icon: const Icon(Icons.calendar_today), onPressed: _pickData)),
         ),
         const SizedBox(height: 10),
