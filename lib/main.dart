@@ -4,7 +4,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/app_platform.dart';
 import 'core/app_version.dart';
 import 'core/presenca/checkin_handler.dart';
-import 'core/loja/loja_publica_pending.dart';
 import 'core/loja/loja_publica_url.dart';
 import 'core/auth/auth_provider.dart';
 import 'core/auth/google_native_sign_in.dart';
@@ -14,7 +13,7 @@ import 'app.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await CheckinHandler.processarUrlInicial();
-  if (urlEhLojaPublica(Uri.base)) LojaPublicaPending.ativar();
+  sincronizarLojaPublicaDaUrl();
 
   if (isNativeApp && GoogleNativeSignIn.disponivel) {
     try {

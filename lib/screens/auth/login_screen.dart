@@ -372,40 +372,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _secaoBiometria() {
-    if (!isNativeApp) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Material(
-          color: Colors.blue.shade50,
-          borderRadius: BorderRadius.circular(12),
-          child: InkWell(
-            onTap: _loading ? null : _infoBiometriaWeb,
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.blue.shade200),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.fingerprint, color: Colors.blue.shade700),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Biometria: toque aqui — disponível no app Android',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.blue.shade900),
-                    ),
-                  ),
-                  Icon(Icons.info_outline, size: 18, color: Colors.blue.shade700),
-                ],
-              ),
-            ),
-          ),
-        ),
-      );
-    }
+    if (!isNativeApp) return const SizedBox.shrink();
 
     return Column(
       children: [
