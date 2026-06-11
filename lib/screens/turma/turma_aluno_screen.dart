@@ -15,6 +15,8 @@ import '../../repositories/presenca_repository.dart';
 import '../../repositories/presenca_config_repository.dart';
 import '../../models/presenca.dart';
 import '../../models/presenca_config.dart';
+import '../../utils/aniversario_utils.dart';
+import '../../core/aniversario/aniversario_aviso_service.dart';
 
 class TurmaAlunoScreen extends StatefulWidget {
   const TurmaAlunoScreen({super.key});
@@ -36,6 +38,8 @@ class _TurmaAlunoScreenState extends State<TurmaAlunoScreen> {
   List<Aluno> _colegas = [];
   List<Presenca> _presencas = [];
   int _presencasMes = 0;
+  List<Aluno> _aniversariantes = [];
+  bool _mostrarAniversario = false;
   bool _loading = true;
 
   @override
@@ -61,9 +65,13 @@ class _TurmaAlunoScreenState extends State<TurmaAlunoScreen> {
       List<Turma> minhas = [];
       List<Aluno> colegas = [];
       List<Presenca> presencas = [];
+      List<Aluno> aniversariantes = [];
       var presencasMes = 0;
+      var mostrarAniversario = false;
       if (aluno != null) {
         minhas = await _turmaRepo.turmasDoAluno(aluno.id);
+        aniversariantes = await carregarAniversariantesTurma(_alunoRepo, aluno.id);
+        mostrarAniversario = await AniversarioAvisoService().avisoPendente(aniversariantes.length);
         final idsColegas = <String>{};
         for (final t in minhas) {
           final ids = await _turmaRepo.alunoIdsPorTurma(t.id);
@@ -84,6 +92,8 @@ class _TurmaAlunoScreenState extends State<TurmaAlunoScreen> {
           _colegas = colegas;
           _presencas = presencas;
           _presencasMes = presencasMes;
+          _aniversariantes = aniversariantes;
+          _mostrarAniversario = mostrarAniversario;
           _metodoPresenca = config.metodo;
           _loading = false;
         });
@@ -109,6 +119,51 @@ class _TurmaAlunoScreenState extends State<TurmaAlunoScreen> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  if (_mostrarAniversario && _aniversariantes.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Material(
+                        color: Colors.pink.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        child: InkWell(
+                          onTap: () async {
+                            await AniversarioAvisoService().marcarVistoHoje();
+                            if (mounted) setState(() => _mostrarAniversario = false);
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: Padding(
+                            padding: const EdgeInsets.all(14),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(Icons.cake_outlined, color: Colors.pink.shade700),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Aniversariante da turma!',
+                                        style: TextStyle(fontWeight: FontWeight.w800, color: Colors.pink.shade900, fontSize: 14),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        _aniversariantes.map((a) => a.nome.split(' ').first).join(', '),
+                                        style: TextStyle(fontSize: 13, color: Colors.pink.shade800),
+                                      ),
+                                      Text(
+                                        'Hoje é aniversário de colega(s) da sua turma.',
+                                        style: TextStyle(fontSize: 11, color: Colors.pink.shade700),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   const Text('Divisão por turma', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
                   const SizedBox(height: 4),
                   Text('Quantidade de alunos em cada turma', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),

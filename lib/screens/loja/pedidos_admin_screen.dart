@@ -122,8 +122,48 @@ class _PedidoAdminCard extends StatefulWidget {
 
 class _PedidoAdminCardState extends State<_PedidoAdminCard> {
   final _repo = PedidoRepository();
+  late final TextEditingController _codRastreioCtrl;
   bool _expanded = false;
   bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _codRastreioCtrl = TextEditingController(text: widget.pedido.codigoRastreamento ?? '');
+  }
+
+  @override
+  void didUpdateWidget(covariant _PedidoAdminCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.pedido.codigoRastreamento != widget.pedido.codigoRastreamento) {
+      _codRastreioCtrl.text = widget.pedido.codigoRastreamento ?? '';
+    }
+  }
+
+  @override
+  void dispose() {
+    _codRastreioCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _salvarCodigoRastreio() async {
+    final cod = _codRastreioCtrl.text.trim();
+    setState(() => _loading = true);
+    await _repo.atualizarRastreamento(
+      widget.pedido.id,
+      codigo: cod.isEmpty ? null : cod,
+      transportadora: widget.pedido.transportadora,
+      link: widget.pedido.linkRastreamento,
+      dataEntrega: widget.pedido.dataEntregaEstimada,
+    );
+    setState(() => _loading = false);
+    widget.onUpdate();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Código de rastreamento salvo.'), backgroundColor: verdeEscuro),
+      );
+    }
+  }
 
   static const _statusColor = {
     'pendente': Colors.orange, 'confirmado': Colors.blue,
@@ -279,6 +319,40 @@ class _PedidoAdminCardState extends State<_PedidoAdminCard> {
               ]),
               Icon(_expanded ? Icons.expand_less : Icons.expand_more, color: Colors.grey),
             ]),
+          ),
+        ),
+
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _codRastreioCtrl,
+                  enabled: !_loading,
+                  decoration: InputDecoration(
+                    hintText: 'Código de rastreamento',
+                    prefixIcon: const Icon(Icons.local_shipping_outlined, size: 18),
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _salvarCodigoRastreio(),
+                ),
+              ),
+              const SizedBox(width: 6),
+              IconButton(
+                tooltip: 'Salvar código',
+                onPressed: _loading ? null : _salvarCodigoRastreio,
+                icon: const Icon(Icons.save_outlined, color: verdeEscuro),
+              ),
+              IconButton(
+                tooltip: 'Mais dados de envio',
+                onPressed: _editarRastreamento,
+                icon: Icon(Icons.more_horiz, color: Colors.grey.shade700),
+              ),
+            ],
           ),
         ),
 

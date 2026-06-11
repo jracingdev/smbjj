@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../core/auth/auth_provider.dart';
+import '../core/auth/biometric_offer_helper.dart';
 import '../core/presenca/checkin_handler.dart';
 import '../core/theme.dart';
 import '../screens/alunos/meu_cadastro_screen.dart';
@@ -16,6 +17,16 @@ class CadastroGate extends StatefulWidget {
 
 class _CadastroGateState extends State<CadastroGate> {
   bool _checkinTentado = false;
+  bool _biometriaTentada = false;
+
+  void _oferecerBiometriaSeNecessario() {
+    if (_biometriaTentada) return;
+    _biometriaTentada = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      BiometricOfferHelper.tentarExibir(context);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,12 +58,16 @@ class _CadastroGateState extends State<CadastroGate> {
           });
         }
 
-        if (auth.isAdmin) return const MainScreen();
+        if (auth.isAdmin) {
+          _oferecerBiometriaSeNecessario();
+          return const MainScreen();
+        }
 
         if (auth.precisaCompletarCadastro) {
           return const MeuCadastroScreen();
         }
 
+        _oferecerBiometriaSeNecessario();
         return const MainScreen();
       },
     );

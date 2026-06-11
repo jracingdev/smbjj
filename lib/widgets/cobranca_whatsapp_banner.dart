@@ -4,7 +4,7 @@ import '../models/aluno.dart';
 import '../models/mensalidade.dart';
 import '../utils/whatsapp_utils.dart';
 
-/// Banner na aba Mensalidades: sugere envio automático nos dias 1, 5 e vencimento.
+/// Banner compacto na aba Mensalidades — cobrança WhatsApp dias 1, 5 e vencimento.
 class CobrancaWhatsAppBanner extends StatelessWidget {
   final int mes;
   final int ano;
@@ -46,86 +46,60 @@ class CobrancaWhatsAppBanner extends StatelessWidget {
       itens.add((aluno: aluno, valor: m.valor));
     }
 
+    final titulo = tipo != null
+        ? 'Hoje: ${labelTipoCobranca(tipo, diaVencimento)} (${pendentes.length})'
+        : 'Cobrança WhatsApp (${pendentes.length} pend.)';
+
     return Card(
-      color: verdeEscuro.withValues(alpha: 0.08),
-      margin: const EdgeInsets.fromLTRB(12, 12, 12, 0),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+      color: verdeEscuro.withValues(alpha: 0.06),
+      margin: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: tipo != null,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+          childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+          leading: Icon(Icons.chat, color: Colors.green.shade700, size: 22),
+          title: Text(titulo, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13)),
+          subtitle: tipo != null
+              ? const Text('Toque para expandir e enviar lembretes', style: TextStyle(fontSize: 11))
+              : null,
           children: [
-            Row(
-              children: [
-                Icon(Icons.chat, color: Colors.green.shade700),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    tipo != null
-                        ? 'Hoje: ${labelTipoCobranca(tipo, diaVencimento)}'
-                        : 'WhatsApp — ${pendentes.length} pendente(s)',
-                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              tipo != null
-                  ? 'Toque abaixo para enviar a mensagem do dia para todos os pendentes (um WhatsApp por vez).'
-                  : 'Envie lembretes em lote ou escolha o tipo de mensagem.',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
-            ),
-            const SizedBox(height: 10),
             if (tipo != null)
-              ElevatedButton.icon(
-                onPressed: () => enviarCobrancaLote(
-                  context: context,
-                  tipo: tipo,
-                  mes: mes,
-                  ano: ano,
-                  diaVencimento: diaVencimento,
-                  itens: itens,
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: ElevatedButton.icon(
+                  onPressed: () => enviarCobrancaLote(
+                    context: context,
+                    tipo: tipo,
+                    mes: mes,
+                    ano: ano,
+                    diaVencimento: diaVencimento,
+                    itens: itens,
+                  ),
+                  icon: const Icon(Icons.send, size: 16),
+                  label: Text('Automatizar hoje (${pendentes.length})'),
+                  style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 36)),
                 ),
-                icon: const Icon(Icons.send),
-                label: Text('Automatizar hoje (${pendentes.length})'),
               ),
-            const SizedBox(height: 8),
             Wrap(
-              spacing: 8,
+              spacing: 6,
               runSpacing: 4,
               children: [
                 OutlinedButton(
-                  onPressed: () => enviarCobrancaLote(
-                    context: context,
-                    tipo: 'aviso1',
-                    mes: mes,
-                    ano: ano,
-                    diaVencimento: diaVencimento,
-                    itens: itens,
-                  ),
-                  child: Text('Dia 1 (${pendentes.length})', style: const TextStyle(fontSize: 12)),
+                  onPressed: () => enviarCobrancaLote(context: context, tipo: 'aviso1', mes: mes, ano: ano, diaVencimento: diaVencimento, itens: itens),
+                  style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+                  child: Text('Dia 1', style: const TextStyle(fontSize: 11)),
                 ),
                 OutlinedButton(
-                  onPressed: () => enviarCobrancaLote(
-                    context: context,
-                    tipo: 'aviso5',
-                    mes: mes,
-                    ano: ano,
-                    diaVencimento: diaVencimento,
-                    itens: itens,
-                  ),
-                  child: Text('Dia 5', style: const TextStyle(fontSize: 12)),
+                  onPressed: () => enviarCobrancaLote(context: context, tipo: 'aviso5', mes: mes, ano: ano, diaVencimento: diaVencimento, itens: itens),
+                  style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+                  child: const Text('Dia 5', style: TextStyle(fontSize: 11)),
                 ),
                 OutlinedButton(
-                  onPressed: () => enviarCobrancaLote(
-                    context: context,
-                    tipo: 'vencimento',
-                    mes: mes,
-                    ano: ano,
-                    diaVencimento: diaVencimento,
-                    itens: itens,
-                  ),
-                  child: Text('Venc. $diaVencimento', style: const TextStyle(fontSize: 12)),
+                  onPressed: () => enviarCobrancaLote(context: context, tipo: 'vencimento', mes: mes, ano: ano, diaVencimento: diaVencimento, itens: itens),
+                  style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+                  child: Text('Venc. $diaVencimento', style: const TextStyle(fontSize: 11)),
                 ),
               ],
             ),

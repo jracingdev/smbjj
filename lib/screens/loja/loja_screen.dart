@@ -7,7 +7,10 @@ import '../../utils/image_utils.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
+import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../core/loja/loja_publica_url.dart';
 import '../../core/auth/auth_provider.dart';
 import '../../core/constants.dart';
 import '../../core/mp_service.dart';
@@ -18,6 +21,8 @@ import '../../core/storage_service.dart';
 import '../../core/supabase_errors.dart';
 import '../../repositories/pedido_repository.dart';
 import '../../repositories/produto_repository.dart';
+import '../../repositories/variante_repository.dart';
+import '../../models/produto_variante.dart';
 import '../../utils/date_utils.dart';
 import '../../utils/loja_tamanhos.dart';
 import 'pedidos_admin_screen.dart';
@@ -33,7 +38,9 @@ class LojaScreen extends StatefulWidget {
 
 class _LojaScreenState extends State<LojaScreen> {
   final _repo = ProdutoRepository();
+  final _varianteRepo = VarianteRepository();
   List<Produto> _produtos = [];
+  Map<String, List<ProdutoVariante>> _variantesPorProduto = {};
   bool _loading = false;
   bool _carregou = false;
   String? _erroLoad;
@@ -71,9 +78,11 @@ class _LojaScreenState extends State<LojaScreen> {
     try {
       final isAdmin = context.read<AuthProvider>().isAdmin;
       final lista = await _repo.listar(ativo: isAdmin ? null : true);
+      final variantes = await _varianteRepo.porProdutos(lista.map((p) => p.id).toList());
       if (!mounted) return;
       setState(() {
         _produtos = lista;
+        _variantesPorProduto = variantes;
         _loading = false;
       });
       if (isAdmin) {
@@ -106,6 +115,18 @@ class _LojaScreenState extends State<LojaScreen> {
 
   List<Produto> get _filtrados => _produtos.where((p) => _filtroCategoria == 'todos' || p.categoria == _filtroCategoria).toList();
 
+  double _aspectRatioAdmin(List<Produto> produtos) {
+    var maxGrade = 0;
+    for (final p in produtos) {
+      final n = (_variantesPorProduto[p.id] ?? const []).length;
+      if (n > maxGrade) maxGrade = n;
+    }
+    if (maxGrade == 0) return 1.35;
+    if (maxGrade <= 4) return 1.05;
+    if (maxGrade <= 8) return 0.88;
+    return 0.75;
+  }
+
   Future<void> _deletar(Produto p) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -125,6 +146,41 @@ class _LojaScreenState extends State<LojaScreen> {
       appBar: AppBar(
         title: const Text('Loja SM BJJ'),
         actions: [
+          if (isAdmin)
+            IconButton(
+              icon: const Icon(Icons.link),
+              tooltip: 'Link público da loja',
+              onPressed: () async {
+                final link = urlLojaPublica();
+                await Clipboard.setData(ClipboardData(text: link));
+                if (!context.mounted) return;
+                await showDialog<void>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Loja pública'),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Compartilhe este link para vender para quem não é aluno:'),
+                        const SizedBox(height: 10),
+                        SelectableText(link, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                      ],
+                    ),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fechar')),
+                      FilledButton.icon(
+                        onPressed: () {
+                          Share.share('Loja SM BJJ — compre kimonos e produtos:\n$link');
+                        },
+                        icon: const Icon(Icons.share, size: 18),
+                        label: const Text('Compartilhar'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
           IconButton(
             icon: Icon(isAdmin ? Icons.list_alt : Icons.receipt_long_outlined),
             tooltip: isAdmin ? 'Pedidos' : 'Meus Pedidos',
@@ -184,17 +240,19 @@ class _LojaScreenState extends State<LojaScreen> {
                   ? Center(child: Text('Nenhum produto encontrado.', style: TextStyle(color: Colors.grey.shade500)))
                   : GridView.builder(
                       padding: const EdgeInsets.fromLTRB(12, 0, 12, 80),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 0.82,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: isAdmin ? 1 : 2,
+                        childAspectRatio: isAdmin ? _aspectRatioAdmin(_filtrados) : 0.54,
                         crossAxisSpacing: 10,
                         mainAxisSpacing: 10,
                       ),
                       itemCount: _filtrados.length,
                       itemBuilder: (_, i) {
                         final p = _filtrados[i];
+                        final variantes = _variantesPorProduto[p.id] ?? const <ProdutoVariante>[];
                         return _ProdutoCard(
                           produto: p,
+                          variantes: variantes,
                           catLabel: _catLabel[p.categoria] ?? p.categoria,
                           catColor: _catColor[p.categoria] ?? Colors.grey,
                           isAdmin: isAdmin,
@@ -422,7 +480,10 @@ class _SolicitarSheetState extends State<_SolicitarSheet> {
         const SizedBox(height: 12),
 
         // Tamanho
-        const Text('Tamanho (opcional):', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+        Text(
+          p.categoria == 'kimono' ? 'Tamanho (obrigatório):' : 'Tamanho (opcional):',
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+        ),
         const SizedBox(height: 6),
         if (p.categoria == 'kimono') ...[
           DropdownButtonFormField<String>(
@@ -496,14 +557,18 @@ class _SolicitarSheetState extends State<_SolicitarSheet> {
         const SizedBox(height: 12),
 
         ElevatedButton.icon(
-          onPressed: () => Navigator.pop(context, {
-            'cor': _cor, 'tamanho': _tamanho, 'quantidade': _qtd,
-            'observacoes': _obsCtrl.text.trim().isEmpty ? null : _obsCtrl.text.trim(),
-            'forma_pagamento': _formaPagamento,
-          }),
+          onPressed: p.categoria == 'kimono' && (_tamanho == null || _tamanho!.isEmpty)
+              ? null
+              : () => Navigator.pop(context, {
+                    'cor': _cor,
+                    'tamanho': _tamanho,
+                    'quantidade': _qtd,
+                    'observacoes': _obsCtrl.text.trim().isEmpty ? null : _obsCtrl.text.trim(),
+                    'forma_pagamento': _formaPagamento,
+                  }),
           icon: const Icon(Icons.shopping_cart_checkout),
           label: Text('Confirmar pedido — R\$ ${(p.preco * _qtd).toStringAsFixed(2)}'),
-          style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade600),
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.green.shade600, foregroundColor: Colors.white),
         ),
       ])),
     );
@@ -512,13 +577,23 @@ class _SolicitarSheetState extends State<_SolicitarSheet> {
 
 class _ProdutoCard extends StatelessWidget {
   final Produto produto;
+  final List<ProdutoVariante> variantes;
   final String catLabel;
   final Color catColor;
   final bool isAdmin;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final VoidCallback? onSolicitar;
-  const _ProdutoCard({required this.produto, required this.catLabel, required this.catColor, required this.isAdmin, this.onEdit, this.onDelete, this.onSolicitar});
+  const _ProdutoCard({
+    required this.produto,
+    this.variantes = const [],
+    required this.catLabel,
+    required this.catColor,
+    required this.isAdmin,
+    this.onEdit,
+    this.onDelete,
+    this.onSolicitar,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -527,11 +602,13 @@ class _ProdutoCard extends StatelessWidget {
       margin: EdgeInsets.zero,
       child: Opacity(
         opacity: produto.ativo ? 1.0 : 0.55,
-        child: Column(
+        child: InkWell(
+          onTap: !isAdmin ? onSolicitar : null,
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             AspectRatio(
-              aspectRatio: 1,
+              aspectRatio: isAdmin ? 2.4 : 1.2,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
@@ -598,6 +675,45 @@ class _ProdutoCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(produto.prazoLabel, style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
+                  if (isAdmin && variantes.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Grade (${variantes.length})',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: Colors.grey.shade700),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        ...variantes.take(12).map(
+                          (v) => Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: verdeEscuro.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: verdeEscuro.withValues(alpha: 0.2)),
+                            ),
+                            child: Text(
+                              '${v.label.isNotEmpty ? v.label : '—'} · est. ${v.estoque}',
+                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ),
+                        if (variantes.length > 12)
+                          Text(
+                            '+${variantes.length - 12}',
+                            style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                          ),
+                      ],
+                    ),
+                  ] else if (isAdmin) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Sem grade cadastrada',
+                      style: TextStyle(fontSize: 10, color: Colors.grey.shade500, fontStyle: FontStyle.italic),
+                    ),
+                  ],
                   if (!isAdmin) ...[
                     const SizedBox(height: 8),
                     ElevatedButton.icon(
@@ -607,7 +723,9 @@ class _ProdutoCard extends StatelessWidget {
                       style: ElevatedButton.styleFrom(
                         visualDensity: VisualDensity.compact,
                         backgroundColor: Colors.green.shade600,
-                        minimumSize: const Size(double.infinity, 36),
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(double.infinity, 40),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
                       ),
                     ),
                   ],
@@ -615,6 +733,7 @@ class _ProdutoCard extends StatelessWidget {
               ),
             ),
           ],
+        ),
         ),
       ),
     );
@@ -743,6 +862,7 @@ class _ProdutoSheet extends StatefulWidget {
 
 class _ProdutoSheetState extends State<_ProdutoSheet> {
   final _repo = ProdutoRepository();
+  final _varianteRepo = VarianteRepository();
   final _uuid = const Uuid();
   late final _nomeCtrl = TextEditingController();
   late final _precoCtrl = TextEditingController();
@@ -780,7 +900,24 @@ class _ProdutoSheetState extends State<_ProdutoSheet> {
       _prazoEntrega = p.prazoEntrega;
       _ativo = p.ativo;
       _fotoUrl = p.fotoUrl;
+      _carregarVariantes(p.id);
     }
+  }
+
+  Future<void> _carregarVariantes(String produtoId) async {
+    try {
+      final lista = await _varianteRepo.porProduto(produtoId);
+      if (!mounted) return;
+      setState(() {
+        _variantes
+          ..clear()
+          ..addAll(lista.map((v) => {
+                'cor': v.cor ?? '',
+                'tamanho': v.tamanho ?? '',
+                'estoque': v.estoque,
+              }));
+      });
+    } catch (_) {}
   }
 
   @override
@@ -944,9 +1081,52 @@ class _ProdutoSheetState extends State<_ProdutoSheet> {
       ativo: _ativo,
       createdAt: widget.produto?.createdAt,
     );
-    if (widget.produto != null) { await _repo.atualizar(p); } else { await _repo.criar(p); }
-    widget.onSaved();
-    if (mounted) Navigator.pop(context);
+    try {
+      final Produto salvo;
+      if (widget.produto != null) {
+        await _repo.atualizar(p);
+        salvo = p;
+      } else {
+        salvo = await _repo.criar(p);
+      }
+
+      final variantes = _variantes
+          .where((v) {
+            final cor = (v['cor'] as String? ?? '').trim();
+            final tam = (v['tamanho'] as String? ?? '').trim();
+            return cor.isNotEmpty || tam.isNotEmpty;
+          })
+          .map(
+            (v) => ProdutoVariante(
+              id: _uuid.v4(),
+              produtoId: salvo.id,
+              cor: () {
+                final c = (v['cor'] as String? ?? '').trim();
+                return c.isEmpty ? null : c;
+              }(),
+              tamanho: () {
+                final t = (v['tamanho'] as String? ?? '').trim();
+                return t.isEmpty ? null : t;
+              }(),
+              estoque: v['estoque'] as int? ?? 0,
+            ),
+          )
+          .toList();
+      await _varianteRepo.sincronizar(salvo.id, variantes);
+
+      widget.onSaved();
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _loading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(mensagemErroSupabase(e, recurso: 'o produto')),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   @override

@@ -16,6 +16,7 @@ import '../../repositories/turma_repository.dart';
 import '../../utils/bjj_utils.dart';
 import '../../utils/date_utils.dart';
 import '../../utils/whatsapp_utils.dart';
+import '../../utils/turma_utils.dart';
 import '../../widgets/cobranca_whatsapp_banner.dart';
 import 'financeiro_config_screen.dart';
 import 'mp_config_screen.dart';
@@ -703,60 +704,79 @@ class _MensalidadesTabState extends State<_MensalidadesTab> {
     }
 
     return Column(children: [
-      Container(color: Colors.white, padding: const EdgeInsets.all(14), child: Column(children: [
-        Row(children: [
-          Expanded(child: DropdownButtonFormField<int>(
-            value: widget.mes, decoration: const InputDecoration(labelText: 'Mês', isDense: true),
-            items: List.generate(12, (i) => DropdownMenuItem(value: i + 1, child: Text(meses[i]))),
-            onChanged: (v) => widget.onChangeMes(v!, widget.ano),
-          )),
-          const SizedBox(width: 12),
-          Expanded(child: DropdownButtonFormField<int>(
-            value: widget.ano, decoration: const InputDecoration(labelText: 'Ano', isDense: true),
-            items: [anoAtual - 1, anoAtual, anoAtual + 1].map((y) => DropdownMenuItem(value: y, child: Text('$y'))).toList(),
-            onChanged: (v) => widget.onChangeMes(widget.mes, v!),
-          )),
-        ]),
-        const SizedBox(height: 10),
-        TextField(
-          controller: _buscaCtrl,
-          decoration: const InputDecoration(
-            labelText: 'Filtrar por nome',
-            prefixIcon: Icon(Icons.search, size: 20),
-            isDense: true,
-          ),
-          onChanged: (_) => setState(() {}),
-        ),
-        const SizedBox(height: 8),
-        DropdownButtonFormField<String?>(
-          value: _turmaFiltroId,
-          decoration: const InputDecoration(labelText: 'Filtrar por turma', isDense: true),
-          items: [
-            const DropdownMenuItem(value: null, child: Text('Todas as turmas')),
-            ...widget.turmas.map((t) => DropdownMenuItem(value: t.id, child: Text(t.nome))),
-          ],
-          onChanged: (v) => setState(() => _turmaFiltroId = v),
-        ),
-        if (_turmaFiltroId != null) ...[
-          const SizedBox(height: 8),
-          OutlinedButton.icon(
-            onPressed: () => _lembreteTurma(context),
-            icon: const Icon(Icons.groups, size: 18),
-            label: const Text('Lembrete WhatsApp para turma'),
-          ),
-        ],
-        const SizedBox(height: 10),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Arrecadado', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-            Text('R\$ ${widget.totalArrecadado.toStringAsFixed(2)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.green)),
+      Container(
+        color: Colors.white,
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+        child: Column(children: [
+          Row(children: [
+            Expanded(
+              flex: 3,
+              child: DropdownButtonFormField<int>(
+                value: widget.mes,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Mês', isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8)),
+                items: List.generate(12, (i) => DropdownMenuItem(value: i + 1, child: Text(meses[i], overflow: TextOverflow.ellipsis))),
+                onChanged: (v) => widget.onChangeMes(v!, widget.ano),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              flex: 2,
+              child: DropdownButtonFormField<int>(
+                value: widget.ano,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Ano', isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8)),
+                items: [anoAtual - 1, anoAtual, anoAtual + 1].map((y) => DropdownMenuItem(value: y, child: Text('$y'))).toList(),
+                onChanged: (v) => widget.onChangeMes(widget.mes, v!),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              flex: 3,
+              child: DropdownButtonFormField<String?>(
+                value: _turmaFiltroId,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Turmas', isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8)),
+                items: [
+                  const DropdownMenuItem(value: null, child: Text('Todas', overflow: TextOverflow.ellipsis)),
+                  ...widget.turmas.map((t) => DropdownMenuItem(
+                        value: t.id,
+                        child: Text(nomeTurmaCurto(t.nome), overflow: TextOverflow.ellipsis),
+                      )),
+                ],
+                onChanged: (v) => setState(() => _turmaFiltroId = v),
+              ),
+            ),
           ]),
-          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text('Pendentes', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-            Text('${widget.pendentes}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.orange)),
+          const SizedBox(height: 6),
+          Row(children: [
+            Expanded(
+              child: TextField(
+                controller: _buscaCtrl,
+                decoration: const InputDecoration(
+                  hintText: 'Buscar nome',
+                  prefixIcon: Icon(Icons.search, size: 18),
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(vertical: 8),
+                ),
+                onChanged: (_) => setState(() {}),
+              ),
+            ),
+            if (_turmaFiltroId != null)
+              IconButton(
+                tooltip: 'Lembrete WhatsApp turma',
+                onPressed: () => _lembreteTurma(context),
+                icon: const Icon(Icons.groups, color: verdeEscuro),
+              ),
+          ]),
+          const SizedBox(height: 4),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text('R\$ ${widget.totalArrecadado.toStringAsFixed(2)}', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: Colors.green)),
+            Text('${widget.pendentes} pend.', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Colors.orange)),
+            Text('${filtradas.length} reg.', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
           ]),
         ]),
-      ])),
+      ),
       CobrancaWhatsAppBanner(
         mes: widget.mes,
         ano: widget.ano,

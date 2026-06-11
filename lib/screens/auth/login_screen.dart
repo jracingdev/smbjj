@@ -4,6 +4,7 @@ import '../../core/app_platform.dart';
 import '../../core/auth/auth_provider.dart';
 import '../../core/auth/auth_result.dart';
 import '../../core/auth/biometric_auth_service.dart';
+import '../../core/auth/biometric_offer_helper.dart';
 import '../../core/auth/credential_remember_service.dart';
 import '../../core/app_version.dart';
 import '../../core/constants.dart';
@@ -100,31 +101,6 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _oferecerBiometria(String email, String senha) async {
-    if (!isNativeApp) return;
-    if (!await BiometricAuthService.instance.biometriaDisponivel) return;
-    if (await BiometricAuthService.instance.habilitado) return;
-    if (!mounted) return;
-
-    final ativar = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Login biométrico'),
-        content: const Text(
-          'Deseja usar digital ou reconhecimento facial para entrar da próxima vez?',
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Agora não')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Ativar')),
-        ],
-      ),
-    );
-    if (ativar == true) {
-      await BiometricAuthService.instance.habilitar(email: email, senha: senha);
-      if (mounted) await _recarregarBiometria();
-    }
-  }
-
   Future<void> _loginSenha() async {
     setState(() {
       _loading = true;
@@ -143,7 +119,9 @@ class _LoginScreenState extends State<LoginScreen> {
           email: email,
           senha: senha,
         );
-        await _oferecerBiometria(email, senha);
+        if (isNativeApp) {
+          BiometricOfferHelper.agendar(email: email, senha: senha);
+        }
       }
     } finally {
       if (mounted) setState(() => _loading = false);

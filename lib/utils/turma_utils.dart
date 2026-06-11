@@ -24,3 +24,7 @@ String formatarHorarioTurma(String horario) {
   if (horario.length == 5 && horario.contains(':')) return '${horario}h';
   return horario;
 }
+
+/// Ex.: "Turma Mista Noite" → "Mista Noite"
+String nomeTurmaCurto(String nome) =>
+    nome.replaceFirst(RegExp(r'^turma\s+', caseSensitive: false), '').trim();

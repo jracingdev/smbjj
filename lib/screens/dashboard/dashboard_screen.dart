@@ -25,6 +25,7 @@ import '../../models/medalha.dart';
 import '../medalhas/medalhas_admin_screen.dart';
 import '../../core/avisos/aviso_lido_service.dart';
 import '../../core/medalhas/medalha_lido_service.dart';
+import '../../core/aniversario/aniversario_aviso_service.dart';
 import '../../utils/aniversario_utils.dart';
 import '../../utils/date_utils.dart';
 import '../presenca/presenca_admin_screen.dart';
@@ -55,6 +56,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Map<String, int> _contagemTurmas = {};
   List<Medalha> _medalhas = [];
   List<Aluno> _aniversariantesTurma = [];
+  bool _mostrarAniversarioAviso = false;
   int _avisosNaoLidos = 0;
   int _medalhasNovas = 0;
   bool _loading = true;
@@ -107,9 +109,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final naoLidos = await AvisoLidoService().contarNaoLidos(avisos);
         final medalhasNovas = await MedalhaLidoService().contarNovas(medalhas);
         var aniversariantes = <Aluno>[];
+        var mostrarAniversario = false;
         if (aluno != null) {
-          final colegas = await _alunoRepo.listarColegasDeTurmas(aluno.id);
-          aniversariantes = aniversariantesHoje(colegas: colegas, excluirAlunoId: aluno.id);
+          aniversariantes = await carregarAniversariantesTurma(_alunoRepo, aluno.id);
+          mostrarAniversario = await AniversarioAvisoService().avisoPendente(aniversariantes.length);
         }
         if (mounted) setState(() {
           _avisos = avisos;
@@ -119,6 +122,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _avisosNaoLidos = naoLidos;
           _medalhasNovas = medalhasNovas;
           _aniversariantesTurma = aniversariantes;
+          _mostrarAniversarioAviso = mostrarAniversario;
           _loading = false;
         });
       }
@@ -270,40 +274,49 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(height: 16),
         ],
-        if (_aniversariantesTurma.isNotEmpty)
+        if (_mostrarAniversarioAviso && _aniversariantesTurma.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(bottom: 16),
             child: Material(
               color: Colors.pink.shade50,
               borderRadius: BorderRadius.circular(12),
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.cake_outlined, color: Colors.pink.shade700),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Aniversariante da turma!',
-                            style: TextStyle(fontWeight: FontWeight.w800, color: Colors.pink.shade900, fontSize: 14),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            _aniversariantesTurma.map((a) => a.nome.split(' ').first).join(', '),
-                            style: TextStyle(fontSize: 13, color: Colors.pink.shade800),
-                          ),
-                          Text(
-                            'Parabenize seu(s) colega(s) de treino hoje!',
-                            style: TextStyle(fontSize: 11, color: Colors.pink.shade700),
-                          ),
-                        ],
+              child: InkWell(
+                onTap: () async {
+                  await AniversarioAvisoService().marcarVistoHoje();
+                  if (mounted) setState(() => _mostrarAniversarioAviso = false);
+                  widget.onAvisosLidos?.call();
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.cake_outlined, color: Colors.pink.shade700),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Aniversariante da turma!',
+                              style: TextStyle(fontWeight: FontWeight.w800, color: Colors.pink.shade900, fontSize: 14),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _aniversariantesTurma.map((a) => a.nome.split(' ').first).join(', '),
+                              style: TextStyle(fontSize: 13, color: Colors.pink.shade800),
+                            ),
+                            Text(
+                              'Parabenize seu(s) colega(s) de treino hoje! Toque para marcar como visto.',
+                              style: TextStyle(fontSize: 11, color: Colors.pink.shade700),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                      Icon(Icons.close, size: 18, color: Colors.pink.shade400),
+                    ],
+                  ),
                 ),
               ),
             ),

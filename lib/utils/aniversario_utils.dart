@@ -1,5 +1,11 @@
 import '../models/aluno.dart';
+import '../repositories/aluno_repository.dart';
 import 'date_utils.dart';
+
+Future<List<Aluno>> carregarAniversariantesTurma(AlunoRepository repo, String alunoId) async {
+  final colegas = await repo.listarColegasDeTurmas(alunoId);
+  return aniversariantesHoje(colegas: colegas, excluirAlunoId: alunoId);
+}
 
 bool aniversarioHoje(String? dataNascimento) {
   final nasc = parseDataNascimento(dataNascimento);
