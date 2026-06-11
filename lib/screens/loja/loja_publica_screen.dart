@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants.dart';
@@ -43,6 +44,8 @@ class _LojaPublicaScreenState extends State<LojaPublicaScreen> {
     'outro': Colors.grey,
   };
 
+  static const _maxContentWidth = 1200.0;
+
   @override
   void initState() {
     super.initState();
@@ -76,11 +79,41 @@ class _LojaPublicaScreenState extends State<LojaPublicaScreen> {
       .where((p) => _filtroCategoria == 'todos' || p.categoria == _filtroCategoria)
       .toList();
 
-  int _crossAxisCount(BuildContext context) {
+  double _gridSidePadding(BuildContext context) {
     final w = MediaQuery.sizeOf(context).width;
-    if (w >= 1200) return 4;
-    if (w >= 900) return 3;
+    final inner = _horizontalPadding(context);
+    if (w <= _maxContentWidth) return inner;
+    return (w - _maxContentWidth) / 2 + inner;
+  }
+
+  double _contentWidth(BuildContext context) {
+    final w = MediaQuery.sizeOf(context).width;
+    final base = w <= _maxContentWidth ? w : _maxContentWidth;
+    return base - _horizontalPadding(context) * 2;
+  }
+
+  int _crossAxisCountForWidth(double contentW) {
+    if (contentW >= 900) return 4;
+    if (contentW >= 600) return 3;
     return 2;
+  }
+
+  int _crossAxisCount(BuildContext context) => _crossAxisCountForWidth(_contentWidth(context));
+
+  double _gridAspectRatio(BuildContext context) {
+    final cols = _crossAxisCount(context);
+    final contentW = _contentWidth(context);
+    final spacing = 12.0 * (cols - 1);
+    final cardW = (contentW - spacing) / cols;
+    const footerH = 132.0;
+    return cardW / (cardW + footerH);
+  }
+
+  double _horizontalPadding(BuildContext context) {
+    final w = MediaQuery.sizeOf(context).width;
+    if (w >= 900) return 24;
+    if (w >= 600) return 16;
+    return 12;
   }
 
   Future<void> _comprar(Produto p) async {
@@ -182,6 +215,15 @@ class _LojaPublicaScreenState extends State<LojaPublicaScreen> {
     );
   }
 
+  Future<void> _abrirWhatsApp() async {
+    final uri = Uri.parse(
+      'https://wa.me/$professorTelefone?text=${Uri.encodeComponent('Olá! Tenho dúvidas sobre a loja SM BJJ.')}',
+    );
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -193,13 +235,16 @@ class _LojaPublicaScreenState extends State<LojaPublicaScreen> {
           slivers: [
             SliverAppBar(
               pinned: true,
-              expandedHeight: 200,
+              expandedHeight: 220,
               backgroundColor: verdeEscuro,
               actions: [
                 TextButton.icon(
                   onPressed: _entrar,
                   icon: const Icon(Icons.login, color: Colors.white, size: 18),
-                  label: const Text('Entrar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                  label: const Text(
+                    'Entrar',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                  ),
                 ),
                 const SizedBox(width: 4),
               ],
@@ -207,9 +252,9 @@ class _LojaPublicaScreenState extends State<LojaPublicaScreen> {
                 background: Container(
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [verdeEscuro, Color(0xFF145521)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [verdeEscuro, Color(0xFF145521), Color(0xFF0D3D16)],
                     ),
                   ),
                   child: SafeArea(
@@ -217,32 +262,45 @@ class _LojaPublicaScreenState extends State<LojaPublicaScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const SizedBox(height: 36),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(50),
-                          child: Image.asset(
-                            'assets/images/logo.png',
-                            width: 72,
-                            height: 72,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                              width: 72,
-                              height: 72,
-                              decoration: BoxDecoration(
-                                color: Colors.white24,
-                                borderRadius: BorderRadius.circular(50),
+                        const SizedBox(height: 40),
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.2),
+                                blurRadius: 16,
+                                offset: const Offset(0, 4),
                               ),
-                              child: const Icon(Icons.sports_martial_arts, size: 40, color: Colors.white),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(50),
+                            child: Image.asset(
+                              'assets/images/logo.png',
+                              width: 76,
+                              height: 76,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) => Container(
+                                width: 76,
+                                height: 76,
+                                decoration: BoxDecoration(
+                                  color: Colors.white24,
+                                  borderRadius: BorderRadius.circular(50),
+                                ),
+                                child: const Icon(Icons.sports_martial_arts, size: 40, color: Colors.white),
+                              ),
                             ),
                           ),
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 12),
                         const Text(
                           'Loja SM BJJ',
                           style: TextStyle(
-                            fontSize: 24,
+                            fontSize: 26,
                             fontWeight: FontWeight.w900,
                             color: Colors.white,
+                            letterSpacing: -0.5,
                           ),
                         ),
                         const SizedBox(height: 4),
@@ -254,6 +312,25 @@ class _LojaPublicaScreenState extends State<LojaPublicaScreen> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 32),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.white24),
+                          ),
+                          child: Text(
+                            'Kimonos, faixas e equipamentos oficiais',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.92),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -262,24 +339,29 @@ class _LojaPublicaScreenState extends State<LojaPublicaScreen> {
             ),
             if (!_loading && _erro == null && _produtos.isNotEmpty)
               SliverToBoxAdapter(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-                  child: Row(
-                    children: [
-                      _FiltroChip(
-                        label: 'Todos',
-                        selected: _filtroCategoria == 'todos',
-                        onTap: () => setState(() => _filtroCategoria = 'todos'),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: _maxContentWidth),
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      padding: EdgeInsets.fromLTRB(_horizontalPadding(context), 16, _horizontalPadding(context), 8),
+                      child: Row(
+                        children: [
+                          _FiltroChip(
+                            label: 'Todos',
+                            selected: _filtroCategoria == 'todos',
+                            onTap: () => setState(() => _filtroCategoria = 'todos'),
+                          ),
+                          ..._categorias.map(
+                            (c) => _FiltroChip(
+                              label: _catLabel[c]!,
+                              selected: _filtroCategoria == c,
+                              onTap: () => setState(() => _filtroCategoria = c),
+                            ),
+                          ),
+                        ],
                       ),
-                      ..._categorias.map(
-                        (c) => _FiltroChip(
-                          label: _catLabel[c]!,
-                          selected: _filtroCategoria == c,
-                          onTap: () => setState(() => _filtroCategoria = c),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
@@ -325,13 +407,18 @@ class _LojaPublicaScreenState extends State<LojaPublicaScreen> {
               )
             else
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+                padding: EdgeInsets.fromLTRB(
+                  _gridSidePadding(context),
+                  4,
+                  _gridSidePadding(context),
+                  16,
+                ),
                 sliver: SliverGrid(
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: _crossAxisCount(context),
-                    childAspectRatio: 0.54,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
+                    childAspectRatio: _gridAspectRatio(context),
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
                   ),
                   delegate: SliverChildBuilderDelegate(
                     (context, i) {
@@ -347,6 +434,14 @@ class _LojaPublicaScreenState extends State<LojaPublicaScreen> {
                   ),
                 ),
               ),
+            SliverToBoxAdapter(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: _maxContentWidth),
+                  child: _LojaFooter(onWhatsApp: _abrirWhatsApp),
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -365,22 +460,47 @@ class _FiltroChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
-      child: FilterChip(
-        label: Text(label),
-        selected: selected,
-        onSelected: (_) => onTap(),
-        selectedColor: verdeEscuro.withValues(alpha: 0.15),
-        checkmarkColor: verdeEscuro,
-        labelStyle: TextStyle(
-          color: selected ? verdeEscuro : Colors.black87,
-          fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(20),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: selected ? verdeEscuro : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: selected ? verdeEscuro : Colors.grey.shade300,
+                width: 1.5,
+              ),
+              boxShadow: selected
+                  ? [
+                      BoxShadow(
+                        color: verdeEscuro.withValues(alpha: 0.25),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: selected ? Colors.white : Colors.black87,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                fontSize: 13,
+              ),
+            ),
+          ),
         ),
       ),
     );
   }
 }
 
-class _ProdutoPublicoCard extends StatelessWidget {
+class _ProdutoPublicoCard extends StatefulWidget {
   final Produto produto;
   final String catLabel;
   final Color catColor;
@@ -394,93 +514,202 @@ class _ProdutoPublicoCard extends StatelessWidget {
   });
 
   @override
+  State<_ProdutoPublicoCard> createState() => _ProdutoPublicoCardState();
+}
+
+class _ProdutoPublicoCardState extends State<_ProdutoPublicoCard> {
+  bool _hovering = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      margin: EdgeInsets.zero,
-      elevation: 3,
-      shadowColor: Colors.black26,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: InkWell(
-        onTap: onComprar,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AspectRatio(
-              aspectRatio: 1.15,
-              child: ProdutoImagem(
-                fotoUrl: produto.fotoUrl,
-                youtubeThumb: produto.youtubeThumbnail,
-                priorizarVideo: produto.temVideoYouTube,
-                fit: BoxFit.cover,
-              ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      produto.nome,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Chip(
-                          label: Text(catLabel, style: const TextStyle(fontSize: 10)),
-                          backgroundColor: catColor.withValues(alpha: 0.15),
-                          padding: EdgeInsets.zero,
-                          visualDensity: VisualDensity.compact,
-                        ),
-                        const Spacer(),
-                        Text(
-                          'R\$ ${produto.preco.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 15,
-                            color: verdeEscuro,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.local_shipping_outlined, size: 12, color: Colors.grey.shade600),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            produto.prazoLabel,
-                            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    ElevatedButton.icon(
-                      onPressed: onComprar,
-                      icon: const Icon(Icons.shopping_bag_outlined, size: 14),
-                      label: const Text('Comprar', style: TextStyle(fontSize: 12)),
-                      style: ElevatedButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        backgroundColor: verdeEscuro,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size(double.infinity, 40),
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                      ),
-                    ),
-                  ],
+    final scale = kIsWeb && _hovering ? 1.015 : 1.0;
+    final elevation = kIsWeb && _hovering ? 8.0 : 3.0;
+
+    return MouseRegion(
+      onEnter: kIsWeb ? (_) => setState(() => _hovering = true) : null,
+      onExit: kIsWeb ? (_) => setState(() => _hovering = false) : null,
+      child: AnimatedScale(
+        scale: scale,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
+        child: Card(
+          clipBehavior: Clip.antiAlias,
+          margin: EdgeInsets.zero,
+          elevation: elevation,
+          shadowColor: Colors.black26,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: InkWell(
+            onTap: widget.onComprar,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AspectRatio(
+                  aspectRatio: 1,
+                  child: ProdutoImagem(
+                    fotoUrl: widget.produto.fotoUrl,
+                    youtubeThumb: widget.produto.youtubeThumbnail,
+                    priorizarVideo: widget.produto.temVideoYouTube,
+                    fit: BoxFit.contain,
+                    padding: const EdgeInsets.all(10),
+                  ),
                 ),
-              ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        widget.produto.nome,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          height: 1.25,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: widget.catColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                widget.catLabel,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: widget.catColor.withValues(alpha: 0.85),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              'R\$ ${widget.produto.preco.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 15,
+                                color: verdeEscuro,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(Icons.local_shipping_outlined, size: 12, color: Colors.grey.shade600),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              widget.produto.prazoLabel,
+                              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      ElevatedButton.icon(
+                        onPressed: widget.onComprar,
+                        icon: const Icon(Icons.shopping_bag_outlined, size: 14),
+                        label: const Text('Comprar', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                        style: ElevatedButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          backgroundColor: verdeEscuro,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          minimumSize: const Size(double.infinity, 38),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+class _LojaFooter extends StatelessWidget {
+  final VoidCallback onWhatsApp;
+
+  const _LojaFooter({required this.onWhatsApp});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.sports_martial_arts, size: 32, color: verdeEscuro.withValues(alpha: 0.8)),
+          const SizedBox(height: 10),
+          const Text(
+            'CT SM BJJ',
+            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16, color: verdeEscuro),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            academiaCredenciada,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            professorNome,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: onWhatsApp,
+            icon: const Icon(Icons.message, size: 18),
+            label: Text('WhatsApp — $professorTelefoneExibicao'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: verdeEscuro,
+              side: BorderSide(color: verdeEscuro.withValues(alpha: 0.4)),
+              minimumSize: const Size(double.infinity, 44),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Pagamento via PIX · $pixKey',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+          ),
+        ],
       ),
     );
   }
@@ -536,18 +765,20 @@ class _CompraPublicaSheetState extends State<_CompraPublicaSheet> {
             const SizedBox(height: 16),
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: SizedBox(
-                height: 140,
+              child: AspectRatio(
+                aspectRatio: 1,
                 child: ProdutoImagem(
                   fotoUrl: p.fotoUrl,
                   youtubeThumb: p.youtubeThumbnail,
                   priorizarVideo: p.temVideoYouTube,
-                  fit: BoxFit.cover,
+                  fit: BoxFit.contain,
+                  padding: const EdgeInsets.all(16),
                 ),
               ),
             ),
             const SizedBox(height: 14),
             Text(p.nome, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+            const SizedBox(height: 4),
             Text(
               'R\$ ${p.preco.toStringAsFixed(2)} / unidade',
               style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
@@ -673,6 +904,7 @@ class _CompraPublicaSheetState extends State<_CompraPublicaSheet> {
                 backgroundColor: verdeEscuro,
                 foregroundColor: Colors.white,
                 minimumSize: const Size(double.infinity, 48),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ],

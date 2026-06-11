@@ -8,6 +8,8 @@ class ProdutoImagem extends StatelessWidget {
   final String? youtubeThumb;
   final bool priorizarVideo;
   final BoxFit fit;
+  final EdgeInsets padding;
+  final Color? backgroundColor;
 
   const ProdutoImagem({
     super.key,
@@ -15,7 +17,11 @@ class ProdutoImagem extends StatelessWidget {
     this.youtubeThumb,
     this.priorizarVideo = false,
     this.fit = BoxFit.contain,
+    this.padding = EdgeInsets.zero,
+    this.backgroundColor,
   });
+
+  Color get _bg => backgroundColor ?? Colors.grey.shade50;
 
   @override
   Widget build(BuildContext context) {
@@ -33,11 +39,8 @@ class ProdutoImagem extends StatelessWidget {
     if (path != null) {
       final remote = path.startsWith('http://') || path.startsWith('https://');
       if (remote) {
-        return Container(
-          color: Colors.grey.shade100,
-          width: double.infinity,
-          height: double.infinity,
-          child: Image.network(
+        return _imageContainer(
+          Image.network(
             path,
             fit: fit,
             width: double.infinity,
@@ -46,11 +49,8 @@ class ProdutoImagem extends StatelessWidget {
           ),
         );
       }
-      return Container(
-        color: Colors.grey.shade100,
-        width: double.infinity,
-        height: double.infinity,
-        child: imageWidgetFromPath(
+      return _imageContainer(
+        imageWidgetFromPath(
           path,
           fit: fit,
           errorWidget: _fallbackYoutube(youtubeThumb),
@@ -61,14 +61,22 @@ class ProdutoImagem extends StatelessWidget {
     return _fallbackYoutube(youtubeThumb);
   }
 
+  Widget _imageContainer(Widget child) => Container(
+        color: _bg,
+        width: double.infinity,
+        height: double.infinity,
+        alignment: Alignment.center,
+        child: Padding(
+          padding: padding,
+          child: child,
+        ),
+      );
+
   Widget _youtubeThumbWidget(String thumb) => Stack(
         fit: StackFit.expand,
         children: [
-          Container(
-            color: Colors.grey.shade100,
-            width: double.infinity,
-            height: double.infinity,
-            child: Image.network(
+          _imageContainer(
+            Image.network(
               thumb,
               fit: fit,
               width: double.infinity,
@@ -93,7 +101,7 @@ class ProdutoImagemPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        color: Colors.grey.shade100,
+        color: Colors.grey.shade50,
         alignment: Alignment.center,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
