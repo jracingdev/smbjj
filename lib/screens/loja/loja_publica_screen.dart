@@ -9,6 +9,7 @@ import '../../models/produto.dart';
 import '../../repositories/pedido_repository.dart';
 import '../../repositories/produto_repository.dart';
 import '../../utils/loja_tamanhos.dart';
+import '../../widgets/produto_imagem.dart';
 import '../auth/login_screen.dart';
 
 /// Loja acessível sem login — para vendas externas à academia.
@@ -24,6 +25,23 @@ class _LojaPublicaScreenState extends State<LojaPublicaScreen> {
   List<Produto> _produtos = [];
   bool _loading = true;
   String? _erro;
+  String _filtroCategoria = 'todos';
+
+  static const _categorias = ['kimono', 'faixa', 'camisa', 'short', 'outro'];
+  static const _catLabel = {
+    'kimono': 'Kimono',
+    'faixa': 'Faixa',
+    'camisa': 'Camisa',
+    'short': 'Short',
+    'outro': 'Outro',
+  };
+  static const _catColor = {
+    'kimono': Colors.blue,
+    'faixa': Colors.amber,
+    'camisa': Colors.purple,
+    'short': Colors.orange,
+    'outro': Colors.grey,
+  };
 
   @override
   void initState() {
@@ -38,16 +56,31 @@ class _LojaPublicaScreenState extends State<LojaPublicaScreen> {
     });
     try {
       final lista = await _produtoRepo.listar(ativo: true);
-      if (mounted) setState(() {
-        _produtos = lista;
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _produtos = lista;
+          _loading = false;
+        });
+      }
     } catch (e) {
-      if (mounted) setState(() {
-        _erro = mensagemErroSupabase(e, recurso: 'os produtos');
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _erro = mensagemErroSupabase(e, recurso: 'os produtos');
+          _loading = false;
+        });
+      }
     }
+  }
+
+  List<Produto> get _filtrados => _produtos
+      .where((p) => _filtroCategoria == 'todos' || p.categoria == _filtroCategoria)
+      .toList();
+
+  int _crossAxisCount(BuildContext context) {
+    final w = MediaQuery.sizeOf(context).width;
+    if (w >= 1200) return 4;
+    if (w >= 900) return 3;
+    return 2;
   }
 
   Future<void> _comprar(Produto p) async {
@@ -55,7 +88,10 @@ class _LojaPublicaScreenState extends State<LojaPublicaScreen> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (_) => _CompraPublicaSheet(produto: p),
     );
     if (result == null) return;
@@ -83,14 +119,24 @@ class _LojaPublicaScreenState extends State<LojaPublicaScreen> {
       await showDialog<void>(
         context: context,
         builder: (ctx) => AlertDialog(
-          title: const Text('Pedido enviado!'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.green.shade600),
+              const SizedBox(width: 8),
+              const Expanded(child: Text('Pedido enviado!')),
+            ],
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Obrigado, ${result['nome']}!'),
               const SizedBox(height: 8),
-              Text('Total: R\$ ${pedido.valorTotal.toStringAsFixed(2)}'),
+              Text(
+                'Total: R\$ ${pedido.valorTotal.toStringAsFixed(2)}',
+                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: verdeEscuro),
+              ),
               const SizedBox(height: 12),
               Text('Chave PIX: $pixKey', style: const TextStyle(fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
@@ -101,12 +147,18 @@ class _LojaPublicaScreenState extends State<LojaPublicaScreen> {
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fechar')),
             FilledButton.icon(
               onPressed: () async {
-                final msg = 'Olá! Fiz um pedido na loja SM BJJ: ${p.nome} — R\$ ${pedido.valorTotal.toStringAsFixed(2)}';
-                final uri = Uri.parse('https://wa.me/5521975396996?text=${Uri.encodeComponent(msg)}');
-                if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+                final msg =
+                    'Olá! Fiz um pedido na loja SM BJJ: ${p.nome} — R\$ ${pedido.valorTotal.toStringAsFixed(2)}';
+                final uri = Uri.parse(
+                  'https://wa.me/$professorTelefone?text=${Uri.encodeComponent(msg)}',
+                );
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
               },
               icon: const Icon(Icons.message, size: 18),
               label: const Text('WhatsApp'),
+              style: FilledButton.styleFrom(backgroundColor: verdeEscuro),
             ),
           ],
         ),
@@ -123,49 +175,313 @@ class _LojaPublicaScreenState extends State<LojaPublicaScreen> {
     }
   }
 
+  void _entrar() {
+    LojaPublicaPending.desativar();
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Loja SM BJJ'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              LojaPublicaPending.desativar();
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-              );
-            },
-            child: const Text('Entrar', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: verdeEscuro))
-          : _erro != null
-              ? Center(child: Padding(padding: const EdgeInsets.all(20), child: Text(_erro!, textAlign: TextAlign.center)))
-              : _produtos.isEmpty
-                  ? const Center(child: Text('Nenhum produto disponível no momento.'))
-                  : ListView.builder(
-                      padding: const EdgeInsets.all(12),
-                      itemCount: _produtos.length,
-                      itemBuilder: (_, i) {
-                        final p = _produtos[i];
-                        return Card(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.all(12),
-                            title: Text(p.nome, style: const TextStyle(fontWeight: FontWeight.w800)),
-                            subtitle: Text('R\$ ${p.preco.toStringAsFixed(2)} · ${p.prazoLabel}'),
-                            trailing: ElevatedButton(
-                              onPressed: () => _comprar(p),
-                              style: ElevatedButton.styleFrom(backgroundColor: verdeEscuro, foregroundColor: Colors.white),
-                              child: const Text('Comprar'),
+      backgroundColor: const Color(0xFFF5F7F5),
+      body: RefreshIndicator(
+        color: verdeEscuro,
+        onRefresh: _load,
+        child: CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              pinned: true,
+              expandedHeight: 200,
+              backgroundColor: verdeEscuro,
+              actions: [
+                TextButton.icon(
+                  onPressed: _entrar,
+                  icon: const Icon(Icons.login, color: Colors.white, size: 18),
+                  label: const Text('Entrar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                ),
+                const SizedBox(width: 4),
+              ],
+              flexibleSpace: FlexibleSpaceBar(
+                background: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [verdeEscuro, Color(0xFF145521)],
+                    ),
+                  ),
+                  child: SafeArea(
+                    bottom: false,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 36),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(50),
+                          child: Image.asset(
+                            'assets/images/logo.png',
+                            width: 72,
+                            height: 72,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              width: 72,
+                              height: 72,
+                              decoration: BoxDecoration(
+                                color: Colors.white24,
+                                borderRadius: BorderRadius.circular(50),
+                              ),
+                              child: const Icon(Icons.sports_martial_arts, size: 40, color: Colors.white),
                             ),
                           ),
-                        );
-                      },
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'Loja SM BJJ',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          academiaCredenciada,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.85),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
+                  ),
+                ),
+              ),
+            ),
+            if (!_loading && _erro == null && _produtos.isNotEmpty)
+              SliverToBoxAdapter(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+                  child: Row(
+                    children: [
+                      _FiltroChip(
+                        label: 'Todos',
+                        selected: _filtroCategoria == 'todos',
+                        onTap: () => setState(() => _filtroCategoria = 'todos'),
+                      ),
+                      ..._categorias.map(
+                        (c) => _FiltroChip(
+                          label: _catLabel[c]!,
+                          selected: _filtroCategoria == c,
+                          onTap: () => setState(() => _filtroCategoria = c),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            if (_loading)
+              const SliverFillRemaining(
+                child: Center(child: CircularProgressIndicator(color: verdeEscuro)),
+              )
+            else if (_erro != null)
+              SliverFillRemaining(
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.cloud_off, size: 48, color: Colors.grey.shade400),
+                        const SizedBox(height: 12),
+                        Text(_erro!, textAlign: TextAlign.center),
+                        const SizedBox(height: 16),
+                        ElevatedButton(onPressed: _load, child: const Text('Tentar novamente')),
+                      ],
+                    ),
+                  ),
+                ),
+              )
+            else if (_filtrados.isEmpty)
+              SliverFillRemaining(
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.inventory_2_outlined, size: 56, color: Colors.grey.shade400),
+                      const SizedBox(height: 12),
+                      Text(
+                        _produtos.isEmpty
+                            ? 'Nenhum produto disponível no momento.'
+                            : 'Nenhum produto nesta categoria.',
+                        style: TextStyle(color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+                sliver: SliverGrid(
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: _crossAxisCount(context),
+                    childAspectRatio: 0.54,
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                  ),
+                  delegate: SliverChildBuilderDelegate(
+                    (context, i) {
+                      final p = _filtrados[i];
+                      return _ProdutoPublicoCard(
+                        produto: p,
+                        catLabel: _catLabel[p.categoria] ?? p.categoria,
+                        catColor: _catColor[p.categoria] ?? Colors.grey,
+                        onComprar: () => _comprar(p),
+                      );
+                    },
+                    childCount: _filtrados.length,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FiltroChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _FiltroChip({required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: FilterChip(
+        label: Text(label),
+        selected: selected,
+        onSelected: (_) => onTap(),
+        selectedColor: verdeEscuro.withValues(alpha: 0.15),
+        checkmarkColor: verdeEscuro,
+        labelStyle: TextStyle(
+          color: selected ? verdeEscuro : Colors.black87,
+          fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+    );
+  }
+}
+
+class _ProdutoPublicoCard extends StatelessWidget {
+  final Produto produto;
+  final String catLabel;
+  final Color catColor;
+  final VoidCallback onComprar;
+
+  const _ProdutoPublicoCard({
+    required this.produto,
+    required this.catLabel,
+    required this.catColor,
+    required this.onComprar,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      margin: EdgeInsets.zero,
+      elevation: 3,
+      shadowColor: Colors.black26,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: InkWell(
+        onTap: onComprar,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AspectRatio(
+              aspectRatio: 1.15,
+              child: ProdutoImagem(
+                fotoUrl: produto.fotoUrl,
+                youtubeThumb: produto.youtubeThumbnail,
+                priorizarVideo: produto.temVideoYouTube,
+                fit: BoxFit.cover,
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      produto.nome,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Chip(
+                          label: Text(catLabel, style: const TextStyle(fontSize: 10)),
+                          backgroundColor: catColor.withValues(alpha: 0.15),
+                          padding: EdgeInsets.zero,
+                          visualDensity: VisualDensity.compact,
+                        ),
+                        const Spacer(),
+                        Text(
+                          'R\$ ${produto.preco.toStringAsFixed(2)}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 15,
+                            color: verdeEscuro,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.local_shipping_outlined, size: 12, color: Colors.grey.shade600),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            produto.prazoLabel,
+                            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    ElevatedButton.icon(
+                      onPressed: onComprar,
+                      icon: const Icon(Icons.shopping_bag_outlined, size: 14),
+                      label: const Text('Comprar', style: TextStyle(fontSize: 12)),
+                      style: ElevatedButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        backgroundColor: verdeEscuro,
+                        foregroundColor: Colors.white,
+                        minimumSize: const Size(double.infinity, 40),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -201,21 +517,67 @@ class _CompraPublicaSheetState extends State<_CompraPublicaSheet> {
     final p = widget.produto;
     final bottom = MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom;
     return Padding(
-      padding: EdgeInsets.fromLTRB(20, 20, 20, bottom + 20),
+      padding: EdgeInsets.fromLTRB(20, 12, 20, bottom + 20),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(p.nome, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
-            Text('R\$ ${p.preco.toStringAsFixed(2)}', style: TextStyle(color: Colors.grey.shade600)),
-            const SizedBox(height: 12),
-            TextField(controller: _nomeCtrl, decoration: const InputDecoration(labelText: 'Seu nome *', isDense: true)),
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: SizedBox(
+                height: 140,
+                child: ProdutoImagem(
+                  fotoUrl: p.fotoUrl,
+                  youtubeThumb: p.youtubeThumbnail,
+                  priorizarVideo: p.temVideoYouTube,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(p.nome, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+            Text(
+              'R\$ ${p.preco.toStringAsFixed(2)} / unidade',
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+            ),
+            if (p.descricao != null && p.descricao!.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(p.descricao!, style: TextStyle(fontSize: 13, color: Colors.grey.shade700)),
+            ],
+            const SizedBox(height: 16),
+            const Text('Seus dados', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
             const SizedBox(height: 8),
-            TextField(controller: _emailCtrl, decoration: const InputDecoration(labelText: 'E-mail', isDense: true), keyboardType: TextInputType.emailAddress),
+            TextField(
+              controller: _nomeCtrl,
+              decoration: const InputDecoration(labelText: 'Seu nome *', isDense: true),
+            ),
             const SizedBox(height: 8),
-            TextField(controller: _telCtrl, decoration: const InputDecoration(labelText: 'WhatsApp *', isDense: true), keyboardType: TextInputType.phone),
-            const SizedBox(height: 12),
+            TextField(
+              controller: _emailCtrl,
+              decoration: const InputDecoration(labelText: 'E-mail', isDense: true),
+              keyboardType: TextInputType.emailAddress,
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _telCtrl,
+              decoration: const InputDecoration(labelText: 'WhatsApp *', isDense: true),
+              keyboardType: TextInputType.phone,
+            ),
+            const SizedBox(height: 16),
+            const Text('Produto', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+            const SizedBox(height: 8),
             if (p.categoria == 'kimono')
               DropdownButtonFormField<String>(
                 value: _tamanho,
@@ -236,13 +598,65 @@ class _CompraPublicaSheetState extends State<_CompraPublicaSheet> {
               decoration: const InputDecoration(labelText: 'Cor (opcional)', isDense: true),
               onChanged: (v) => _cor = v.isEmpty ? null : v,
             ),
-            const SizedBox(height: 8),
-            TextField(controller: _obsCtrl, decoration: const InputDecoration(labelText: 'Observações', isDense: true), maxLines: 2),
             const SizedBox(height: 12),
-            ElevatedButton(
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Quantidade:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.remove_circle_outline),
+                      onPressed: _qtd > 1 ? () => setState(() => _qtd--) : null,
+                    ),
+                    Text('$_qtd', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+                    IconButton(
+                      icon: const Icon(Icons.add_circle_outline, color: verdeEscuro),
+                      onPressed: () => setState(() => _qtd++),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            TextField(
+              controller: _obsCtrl,
+              decoration: const InputDecoration(labelText: 'Observações', isDense: true),
+              maxLines: 2,
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: verdeEscuro.withValues(alpha: 0.15)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Total:', style: TextStyle(fontWeight: FontWeight.w700)),
+                  Text(
+                    'R\$ ${(p.preco * _qtd).toStringAsFixed(2)}',
+                    style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: verdeEscuro),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
               onPressed: () {
-                if (_nomeCtrl.text.trim().isEmpty || _telCtrl.text.trim().isEmpty) return;
-                if (p.categoria == 'kimono' && (_tamanho == null || _tamanho!.isEmpty)) return;
+                if (_nomeCtrl.text.trim().isEmpty || _telCtrl.text.trim().isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Preencha nome e WhatsApp.')),
+                  );
+                  return;
+                }
+                if (p.categoria == 'kimono' && (_tamanho == null || _tamanho!.isEmpty)) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Selecione o tamanho do kimono.')),
+                  );
+                  return;
+                }
                 Navigator.pop(context, {
                   'nome': _nomeCtrl.text.trim(),
                   'email': _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
@@ -253,8 +667,13 @@ class _CompraPublicaSheetState extends State<_CompraPublicaSheet> {
                   'observacoes': _obsCtrl.text.trim().isEmpty ? null : _obsCtrl.text.trim(),
                 });
               },
-              style: ElevatedButton.styleFrom(backgroundColor: verdeEscuro, foregroundColor: Colors.white),
-              child: Text('Confirmar — R\$ ${(p.preco * _qtd).toStringAsFixed(2)}'),
+              icon: const Icon(Icons.shopping_cart_checkout),
+              label: Text('Confirmar — R\$ ${(p.preco * _qtd).toStringAsFixed(2)}'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: verdeEscuro,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 48),
+              ),
             ),
           ],
         ),
