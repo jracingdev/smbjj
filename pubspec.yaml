@@ -1,7 +1,7 @@
 name: ct_sm_bjj
 description: CT SM BJJ - Gestão de Academia de Jiu-Jitsu
 publish_to: 'none'
-version: 1.7.21+52
+version: 1.7.22+53
 
 environment:
   sdk: '>=3.3.0 <4.0.0'

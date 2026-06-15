@@ -293,7 +293,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
                   Text(user?.nome ?? '', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: Colors.white)),
                   Text(user?.email ?? '', style: const TextStyle(color: Colors.white70, fontSize: 13)),
                   const SizedBox(height: 4),
-                  Text(AppVersion.label, style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                  Text(AppVersion.label, style: const TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.w800)),
                   const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),

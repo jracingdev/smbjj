@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import '../core/app_version.dart';
 import '../models/produto.dart';
 import 'produto_imagem.dart';
 
@@ -7,56 +9,58 @@ class ProdutoImagemComZoom extends StatelessWidget {
   final Produto produto;
   final BoxFit fit;
   final EdgeInsets padding;
+  /// Contexto estável para abrir zoom (ex.: tela pai, fora do bottom sheet).
+  final BuildContext? navigatorContext;
 
   const ProdutoImagemComZoom({
     super.key,
     required this.produto,
     this.fit = BoxFit.contain,
     this.padding = EdgeInsets.zero,
+    this.navigatorContext,
   });
+
+  void _abrir(BuildContext context) {
+    HapticFeedback.lightImpact();
+    final ctx = navigatorContext ?? context;
+    ProdutoImagemAmpliada.mostrarProduto(ctx, produto);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        IgnorePointer(
-          child: ProdutoImagem(
-            fotoUrl: produto.fotoUrl,
-            youtubeThumb: produto.youtubeThumbnail,
-            priorizarVideo: produto.temVideoYouTube,
-            fit: fit,
-            padding: padding,
-          ),
-        ),
-        Positioned.fill(
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: () => ProdutoImagemAmpliada.mostrarProduto(context, produto),
-              splashColor: Colors.white24,
-              highlightColor: Colors.white10,
+    return Listener(
+      behavior: HitTestBehavior.opaque,
+      onPointerUp: (_) => _abrir(context),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          IgnorePointer(
+            child: ProdutoImagem(
+              fotoUrl: produto.fotoUrl,
+              youtubeThumb: produto.youtubeThumbnail,
+              priorizarVideo: produto.temVideoYouTube,
+              fit: fit,
+              padding: padding,
             ),
           ),
-        ),
-        Positioned(
-          right: 6,
-          bottom: 6,
-          child: Material(
-            color: Colors.black54,
-            borderRadius: BorderRadius.circular(8),
-            child: InkWell(
-              onTap: () => ProdutoImagemAmpliada.mostrarProduto(context, produto),
-              borderRadius: BorderRadius.circular(8),
-              customBorder: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              child: const Padding(
-                padding: EdgeInsets.all(6),
-                child: Icon(Icons.zoom_in, color: Colors.white, size: 18),
+          const Positioned(
+            right: 6,
+            bottom: 6,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Color(0x8C000000),
+                  borderRadius: BorderRadius.all(Radius.circular(8)),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.all(6),
+                  child: Icon(Icons.zoom_in, color: Colors.white, size: 18),
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -72,7 +76,9 @@ class ProdutoImagemAmpliada {
     String? youtubeThumb,
     bool priorizarVideo = false,
   }) {
-    return Navigator.of(context, rootNavigator: true).push<void>(
+    HapticFeedback.mediumImpact();
+    final nav = Navigator.of(context, rootNavigator: true);
+    return nav.push<void>(
       MaterialPageRoute<void>(
         fullscreenDialog: true,
         builder: (ctx) => _ProdutoZoomPage(
@@ -145,11 +151,20 @@ class _ProdutoZoomPage extends StatelessWidget {
                         onPressed: () => Navigator.pop(context),
                       ),
                       Expanded(
-                        child: Text(
-                          titulo,
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              titulo,
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 16),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              AppVersion.label,
+                              style: const TextStyle(color: Colors.white54, fontSize: 10),
+                            ),
+                          ],
                         ),
                       ),
                     ],

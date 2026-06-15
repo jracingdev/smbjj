@@ -25,6 +25,7 @@ import '../../repositories/variante_repository.dart';
 import '../../models/produto_variante.dart';
 import '../../utils/date_utils.dart';
 import '../../utils/loja_tamanhos.dart';
+import '../../core/app_version.dart';
 import '../../utils/scroll_padding.dart';
 import '../legal/legal_document_screen.dart';
 import 'pedidos_admin_screen.dart';
@@ -209,8 +210,20 @@ class _LojaScreenState extends State<LojaScreen> {
     final isAdmin = context.watch<AuthProvider>().isAdmin;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Loja SM BJJ'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Loja SM BJJ', style: TextStyle(fontSize: 18)),
+            Text(AppVersion.label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+          ],
+        ),
         actions: [
+          if (!isAdmin)
+            TextButton(
+              onPressed: _abrirDocumentosLegais,
+              child: const Text('Legal', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+            ),
           if (!isAdmin)
             IconButton(
               icon: const Icon(Icons.gavel_outlined),
@@ -252,6 +265,24 @@ class _LojaScreenState extends State<LojaScreen> {
         label: const Text('Novo Produto', style: TextStyle(color: Colors.white)),
       ) : null,
       body: Column(children: [
+        if (!isAdmin)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            color: verdeEscuro.withValues(alpha: 0.12),
+            child: Row(
+              children: [
+                const Icon(Icons.touch_app, size: 18, color: verdeEscuro),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Toque na foto do produto para ampliar · Termos em Legal',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.grey.shade800),
+                  ),
+                ),
+              ],
+            ),
+          ),
         if (isAdmin)
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
@@ -386,7 +417,7 @@ class _LojaScreenState extends State<LojaScreen> {
     final result = await showModalBottomSheet<Map<String, dynamic>>(
       context: ctx, isScrollControlled: true, useSafeArea: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => _SolicitarSheet(produto: p),
+      builder: (_) => _SolicitarSheet(produto: p, navigatorContext: ctx),
     );
     if (result == null) return;
 
@@ -533,7 +564,8 @@ class _FiltroChip extends StatelessWidget {
 // ── Sheet de solicitação com variante e quantidade ───────────
 class _SolicitarSheet extends StatefulWidget {
   final Produto produto;
-  const _SolicitarSheet({required this.produto});
+  final BuildContext navigatorContext;
+  const _SolicitarSheet({required this.produto, required this.navigatorContext});
   @override
   State<_SolicitarSheet> createState() => _SolicitarSheetState();
 }
@@ -570,7 +602,7 @@ class _SolicitarSheetState extends State<_SolicitarSheet> {
           borderRadius: BorderRadius.circular(10),
           child: SizedBox(
             height: 140,
-            child: ProdutoImagemComZoom(produto: p, padding: const EdgeInsets.all(8)),
+            child: ProdutoImagemComZoom(produto: p, padding: const EdgeInsets.all(8), navigatorContext: widget.navigatorContext),
           ),
         ),
         const SizedBox(height: 16),
@@ -745,7 +777,7 @@ class _ProdutoCard extends StatelessWidget {
                         ),
                       ],
                     )
-                  : ProdutoImagemComZoom(produto: produto, padding: const EdgeInsets.all(6)),
+                  : ProdutoImagemComZoom(produto: produto, padding: const EdgeInsets.all(6), navigatorContext: context),
             ),
             Material(
               color: Colors.transparent,
