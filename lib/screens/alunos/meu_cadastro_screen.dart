@@ -8,6 +8,7 @@ import '../../core/theme.dart';
 import '../../models/aluno.dart';
 import '../../repositories/aluno_repository.dart';
 import '../../utils/bjj_utils.dart';
+import '../../utils/scroll_padding.dart';
 import '../../utils/date_utils.dart';
 import '../../widgets/faixa_badge.dart';
 import '../../widgets/turmas_aluno_card.dart';
@@ -238,7 +239,7 @@ class _MeuCadastroScreenState extends State<MeuCadastroScreen> {
         automaticallyImplyLeading: podeVoltar,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: ScrollBottomPadding.all(context, extra: 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

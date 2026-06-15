@@ -7,6 +7,7 @@ import '../../models/turma.dart';
 import '../../repositories/aluno_repository.dart';
 import '../../repositories/turma_repository.dart';
 import '../../utils/turma_utils.dart';
+import '../../utils/scroll_padding.dart';
 import '../../widgets/faixa_badge.dart';
 import '../../widgets/aluno_avatar.dart';
 import '../../widgets/presencas_aluno_card.dart';
@@ -117,7 +118,7 @@ class _TurmaAlunoScreenState extends State<TurmaAlunoScreen> {
           : RefreshIndicator(
               onRefresh: _load,
               child: ListView(
-                padding: const EdgeInsets.all(16),
+                padding: ScrollBottomPadding.all(context, extra: 24),
                 children: [
                   if (_mostrarAniversario && _aniversariantes.isNotEmpty)
                     Padding(

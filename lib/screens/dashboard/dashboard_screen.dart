@@ -15,6 +15,7 @@ import 'avisos_screen.dart';
 import 'calendario_screen.dart';
 import '../../models/evento.dart';
 import '../../utils/bjj_utils.dart';
+import '../../utils/scroll_padding.dart';
 import '../../widgets/faixa_badge.dart';
 import '../../widgets/turmas_aluno_card.dart';
 import '../../widgets/contatos_card.dart';
@@ -166,7 +167,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final pendentesValidacao = _alunos.where((a) => !a.cadastroValidado).length;
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: ScrollBottomPadding.all(context, extra: 24),
       children: [
         Text(formatMesAnoPartes(now.month, now.year), style: TextStyle(color: Colors.grey.shade600, fontSize: 13)),
         const SizedBox(height: 12),
@@ -252,7 +253,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final mostraFaixa = aluno != null && aluno.cadastroValidado;
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: ScrollBottomPadding.all(context, extra: 24),
       children: [
         if (mostraFaixa) ...[
           Card(

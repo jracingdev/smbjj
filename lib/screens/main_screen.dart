@@ -184,7 +184,9 @@ class _MainScreenState extends State<MainScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: BottomNavigationBar(
         currentIndex: _tabIndex.clamp(0, isAdmin ? 4 : 3),
         onTap: (i) {
           setState(() => _tabIndex = i);
@@ -196,6 +198,7 @@ class _MainScreenState extends State<MainScreen> {
         },
         items: isAdmin ? adminNavItems : alunoNavItems,
         selectedItemColor: verdeEscuro,
+      ),
       ),
     );
   }

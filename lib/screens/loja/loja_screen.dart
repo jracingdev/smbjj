@@ -25,6 +25,7 @@ import '../../repositories/variante_repository.dart';
 import '../../models/produto_variante.dart';
 import '../../utils/date_utils.dart';
 import '../../utils/loja_tamanhos.dart';
+import '../../utils/scroll_padding.dart';
 import 'pedidos_admin_screen.dart';
 import 'meus_pedidos_screen.dart';
 
@@ -313,7 +314,7 @@ class _LojaScreenState extends State<LojaScreen> {
               : _filtrados.isEmpty
                   ? Center(child: Text('Nenhum produto encontrado.', style: TextStyle(color: Colors.grey.shade500)))
                   : GridView.builder(
-                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 80),
+                      padding: EdgeInsets.fromLTRB(12, 0, 12, ScrollBottomPadding.bottom(context, extra: 24)),
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                         crossAxisCount: isAdmin ? 1 : 2,
                         childAspectRatio: isAdmin ? _aspectRatioAdmin(_filtrados) : 0.54,
@@ -537,29 +538,11 @@ class _SolicitarSheetState extends State<_SolicitarSheet> {
         Text('Solicitar: ${p.nome}', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900)),
         Text('R\$ ${p.preco.toStringAsFixed(2)} / unidade', style: TextStyle(color: Colors.grey.shade600)),
         const SizedBox(height: 12),
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => ProdutoImagemAmpliada.mostrarProduto(context, p),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: SizedBox(
-              height: 140,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  _ProdutoImagem(fotoUrl: p.fotoUrl, youtubeThumb: p.youtubeThumbnail, priorizarVideo: p.temVideoYouTube),
-                  Positioned(
-                    right: 8,
-                    bottom: 8,
-                    child: Container(
-                      padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(8)),
-                      child: const Icon(Icons.zoom_in, color: Colors.white, size: 16),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: SizedBox(
+            height: 140,
+            child: ProdutoImagemComZoom(produto: p, padding: const EdgeInsets.all(8)),
           ),
         ),
         const SizedBox(height: 16),
@@ -699,64 +682,46 @@ class _ProdutoCard extends StatelessWidget {
           children: [
             AspectRatio(
               aspectRatio: isAdmin ? 2.4 : 1.2,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => ProdutoImagemAmpliada.mostrarProduto(context, produto),
-                    child: _ProdutoImagem(
-                      fotoUrl: produto.fotoUrl,
-                      youtubeThumb: produto.youtubeThumbnail,
-                      priorizarVideo: produto.temVideoYouTube,
-                    ),
-                  ),
-                  if (!isAdmin)
-                    Positioned(
-                      right: 6,
-                      bottom: 6,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: BoxDecoration(
-                          color: Colors.black54,
-                          borderRadius: BorderRadius.circular(8),
+              child: isAdmin
+                  ? Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        _ProdutoImagemAdmin(
+                          fotoUrl: produto.fotoUrl,
+                          youtubeThumb: produto.youtubeThumbnail,
+                          priorizarVideo: produto.temVideoYouTube,
                         ),
-                        child: const Icon(Icons.zoom_in, color: Colors.white, size: 16),
-                      ),
-                    ),
-                  if (isAdmin && !produto.ativo)
-                    Positioned(
-                      top: 8,
-                      left: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.black54,
-                          borderRadius: BorderRadius.circular(20),
+                        if (!produto.ativo)
+                          Positioned(
+                            top: 8,
+                            left: 8,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.black54,
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Text('Inativo', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+                            ),
+                          ),
+                        Positioned(
+                          top: 6,
+                          right: 6,
+                          child: Row(
+                            children: [
+                              _CardActionButton(icon: Icons.edit_outlined, color: verdeEscuro, onTap: onEdit),
+                              const SizedBox(width: 4),
+                              _CardActionButton(icon: Icons.delete_outline, color: Colors.red, onTap: onDelete),
+                            ],
+                          ),
                         ),
-                        child: const Text('Inativo', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
-                      ),
-                    ),
-                  if (isAdmin)
-                    Positioned(
-                      top: 6,
-                      right: 6,
-                      child: Row(
-                        children: [
-                          _CardActionButton(icon: Icons.edit_outlined, color: verdeEscuro, onTap: onEdit),
-                          const SizedBox(width: 4),
-                          _CardActionButton(icon: Icons.delete_outline, color: Colors.red, onTap: onDelete),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
+                      ],
+                    )
+                  : ProdutoImagemComZoom(produto: produto, padding: const EdgeInsets.all(6)),
             ),
             Material(
               color: Colors.transparent,
-              child: InkWell(
-                onTap: !isAdmin ? onSolicitar : null,
-                child: Padding(
+              child: Padding(
               padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -843,7 +808,6 @@ class _ProdutoCard extends StatelessWidget {
                 ],
               ),
             ),
-              ),
             ),
           ],
         ),
@@ -892,11 +856,11 @@ class _PlaceholderImg extends StatelessWidget {
   );
 }
 
-class _ProdutoImagem extends StatelessWidget {
+class _ProdutoImagemAdmin extends StatelessWidget {
   final String? fotoUrl;
   final String? youtubeThumb;
   final bool priorizarVideo;
-  const _ProdutoImagem({this.fotoUrl, this.youtubeThumb, this.priorizarVideo = false});
+  const _ProdutoImagemAdmin({this.fotoUrl, this.youtubeThumb, this.priorizarVideo = false});
 
   @override
   Widget build(BuildContext context) {

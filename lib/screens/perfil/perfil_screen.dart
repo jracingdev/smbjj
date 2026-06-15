@@ -18,6 +18,7 @@ import '../../repositories/aluno_repository.dart';
 import '../../repositories/mensalidade_repository.dart';
 import '../../utils/bjj_utils.dart';
 import '../../utils/date_utils.dart';
+import '../../utils/scroll_padding.dart';
 import '../../widgets/faixa_ilustrada.dart';
 import '../sobre_screen.dart';
 import '../legal/legal_document_screen.dart';
@@ -263,7 +264,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: verdeEscuro))
-          : ListView(padding: const EdgeInsets.all(16), children: [
+          : ListView(padding: ScrollBottomPadding.all(context, extra: 24), children: [
               // Header
               Container(
                 padding: const EdgeInsets.all(20),
@@ -491,6 +492,26 @@ class _PerfilScreenState extends State<PerfilScreen> {
               const SizedBox(height: 12),
 
               const _BiometricSettingsCard(),
+              const SizedBox(height: 20),
+
+              const Text('Documentos legais', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+              const SizedBox(height: 10),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Termos de uso, privacidade e aptidão física',
+                        style: TextStyle(fontSize: 13, color: Colors.grey.shade700, height: 1.35),
+                      ),
+                      const SizedBox(height: 12),
+                      const LegalDocumentLinks(),
+                    ],
+                  ),
+                ),
+              ),
               const SizedBox(height: 12),
 
               // ── Sobre o App ───────────────────────
@@ -506,34 +527,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 tileColor: Colors.white,
               ),
-              const SizedBox(height: 8),
-              ListTile(
-                onTap: () => LegalDocumentScreen.abrir(context, LegalDoc.termos),
-                leading: const Icon(Icons.description_outlined, color: verdeEscuro),
-                title: const Text('Termos de Uso'),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                tileColor: Colors.white,
-              ),
-              const SizedBox(height: 8),
-              ListTile(
-                onTap: () => LegalDocumentScreen.abrir(context, LegalDoc.privacidade),
-                leading: const Icon(Icons.privacy_tip_outlined, color: verdeEscuro),
-                title: const Text('Política de Privacidade'),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                tileColor: Colors.white,
-              ),
-              const SizedBox(height: 8),
-              ListTile(
-                onTap: () => LegalDocumentScreen.abrir(context, LegalDoc.aptidao),
-                leading: const Icon(Icons.health_and_safety_outlined, color: verdeEscuro),
-                title: const Text('Termo de Aptidão Física'),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                tileColor: Colors.white,
-              ),
-              const SizedBox(height: 20),
+              SizedBox(height: ScrollBottomPadding.bottom(context, extra: 8)),
             ]),
     );
   }
