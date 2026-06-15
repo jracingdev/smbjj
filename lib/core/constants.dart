@@ -2,9 +2,15 @@
 // CT SM BJJ — Constantes do App
 // ============================================================
 
-const String appVersion = '1.7.12';
-const String appBuild = '43';
+const String appVersion = '1.7.14';
+const String appBuild = '45';
 const String appName = 'CT SM BJJ';
+
+/// Domínio principal (GitHub Pages custom domain).
+const String webAppUrl = 'https://smbjj.com.br/';
+/// Loja pública para visitantes.
+const String lojaPublicaWebUrl = 'https://loja.smbjj.com.br/';
+const String lojaPublicaHost = 'loja.smbjj.com.br';
 
 // Academia
 const String academiaFundacao = '2018';
