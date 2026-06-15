@@ -37,12 +37,16 @@
 </head>
 <body>
   <script>
-    // Migração única: limpa service worker antigo (ex.: v1.7.0) que impedia ?loja=publica.
+    // Domínio oficial: força HTTPS (Service Worker exige contexto seguro).
     (function () {
-      var migrationKey = 'ct_sm_bjj_sw_migration';
-      var migrationVersion = 'v1.7.14-domain';
-      if (localStorage.getItem(migrationKey) === migrationVersion) return;
-      localStorage.setItem(migrationKey, migrationVersion);
+      var h = location.hostname;
+      if (location.protocol === 'http:' &&
+          (h === 'smbjj.com.br' || h === 'www.smbjj.com.br' || h === 'loja.smbjj.com.br')) {
+        location.replace('https://' + location.host + location.pathname + location.search + location.hash);
+      }
+    })();
+    // Remove service workers antigos — build web sem PWA/offline.
+    (function () {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations().then(function (regs) {
           regs.forEach(function (reg) { reg.unregister(); });

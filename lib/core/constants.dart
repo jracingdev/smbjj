@@ -2,8 +2,8 @@
 // CT SM BJJ — Constantes do App
 // ============================================================
 
-const String appVersion = '1.7.14';
-const String appBuild = '45';
+const String appVersion = '1.7.15';
+const String appBuild = '46';
 const String appName = 'CT SM BJJ';
 
 /// Domínio principal (GitHub Pages custom domain).
