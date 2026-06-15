@@ -12,6 +12,7 @@ import '../../repositories/produto_repository.dart';
 import '../../utils/loja_tamanhos.dart';
 import '../../widgets/produto_imagem.dart';
 import '../auth/login_screen.dart';
+import '../legal/legal_document_screen.dart';
 
 /// Loja acessível sem login — para vendas externas à academia.
 class LojaPublicaScreen extends StatefulWidget {
@@ -709,6 +710,8 @@ class _LojaFooter extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
           ),
+          const SizedBox(height: 12),
+          LegalLinksRow(style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
         ],
       ),
     );

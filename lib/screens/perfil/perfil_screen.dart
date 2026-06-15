@@ -8,6 +8,7 @@ import '../../core/auth/biometric_auth_service.dart';
 import '../../core/backup/drive_backup.dart';
 import '../../core/app_version.dart';
 import '../../core/constants.dart';
+import '../../core/theme.dart';
 import '../../core/notifications/alert_preferences_service.dart';
 import '../../core/notifications/app_alert_service.dart';
 import '../../models/aluno.dart';
@@ -19,6 +20,7 @@ import '../../utils/bjj_utils.dart';
 import '../../utils/date_utils.dart';
 import '../../widgets/faixa_ilustrada.dart';
 import '../sobre_screen.dart';
+import '../legal/legal_document_screen.dart';
 import '../../widgets/gft_logo_image.dart';
 import '../alunos/meu_cadastro_screen.dart';
 import '../../widgets/turmas_aluno_card.dart';
@@ -336,7 +338,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
                       title: const Text('Alertas sonoros'),
                       subtitle: const Text('Som ao receber avisos, medalhas ou pedidos na loja'),
                       value: _alertasSom,
-                      activeThumbColor: verdeEscuro,
+                      thumbColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? verdeEscuro : null),
                       onChanged: (v) async {
                         await AlertPreferencesService.instance.setAlertasSomAtivos(v);
                         if (mounted) setState(() => _alertasSom = v);
@@ -348,7 +350,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
                       title: const Text('Alertas visuais'),
                       subtitle: const Text('Banner com logo da academia no topo da tela'),
                       value: _alertasVisual,
-                      activeThumbColor: verdeEscuro,
+                      thumbColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? verdeEscuro : null),
                       onChanged: (v) async {
                         await AlertPreferencesService.instance.setAlertasVisuaisAtivos(v);
                         if (mounted) setState(() => _alertasVisual = v);
@@ -504,6 +506,24 @@ class _PerfilScreenState extends State<PerfilScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 tileColor: Colors.white,
               ),
+              const SizedBox(height: 8),
+              ListTile(
+                onTap: () => LegalDocumentScreen.abrir(context, LegalDoc.termos),
+                leading: const Icon(Icons.description_outlined, color: verdeEscuro),
+                title: const Text('Termos de Uso'),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                tileColor: Colors.white,
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                onTap: () => LegalDocumentScreen.abrir(context, LegalDoc.privacidade),
+                leading: const Icon(Icons.privacy_tip_outlined, color: verdeEscuro),
+                title: const Text('Política de Privacidade'),
+                trailing: const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                tileColor: Colors.white,
+              ),
               const SizedBox(height: 20),
             ]),
     );
@@ -598,7 +618,7 @@ class _BiometricSettingsCardState extends State<_BiometricSettingsCard> {
           style: const TextStyle(fontSize: 12),
         ),
         value: _habilitado,
-        activeColor: verdeEscuro,
+        thumbColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? verdeEscuro : null),
         onChanged: (ligar) async {
           if (!ligar) {
             await BiometricAuthService.instance.desabilitar();

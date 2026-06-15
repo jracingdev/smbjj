@@ -4,6 +4,7 @@ import '../../core/app_platform.dart';
 import '../../core/auth/auth_provider.dart';
 import '../../core/auth/auth_result.dart';
 import '../../core/theme.dart';
+import '../legal/legal_document_screen.dart';
 
 class CriarContaScreen extends StatefulWidget {
   const CriarContaScreen({super.key});
@@ -18,6 +19,7 @@ class _CriarContaScreenState extends State<CriarContaScreen> {
   final _senhaCtrl = TextEditingController();
   final _confirmaSenhaCtrl = TextEditingController();
   bool _loading = false;
+  bool _aceitouTermos = false;
   String? _erro;
   String? _sucesso;
   AuthProvider? _authProv;
@@ -49,6 +51,10 @@ class _CriarContaScreenState extends State<CriarContaScreen> {
   }
 
   Future<void> _criar() async {
+    if (!_aceitouTermos) {
+      setState(() => _erro = 'Aceite os Termos de Uso e a Política de Privacidade para continuar.');
+      return;
+    }
     if (_nomeCtrl.text.trim().isEmpty) {
       setState(() => _erro = 'Informe seu nome completo.');
       return;
@@ -100,6 +106,10 @@ class _CriarContaScreenState extends State<CriarContaScreen> {
   }
 
   Future<void> _criarComGoogle() async {
+    if (!_aceitouTermos) {
+      setState(() => _erro = 'Aceite os Termos de Uso e a Política de Privacidade para continuar.');
+      return;
+    }
     setState(() {
       _loading = true;
       _erro = null;
@@ -227,7 +237,41 @@ class _CriarContaScreenState extends State<CriarContaScreen> {
                   obscureText: true,
                   onSubmitted: (_) => _loading ? null : _criar(),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Checkbox(
+                      value: _aceitouTermos,
+                      activeColor: verdeEscuro,
+                      onChanged: _loading ? null : (v) => setState(() => _aceitouTermos = v ?? false),
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: _loading ? null : () => setState(() => _aceitouTermos = !_aceitouTermos),
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: Wrap(
+                            children: [
+                              Text('Li e aceito os ', style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                              GestureDetector(
+                                onTap: () => LegalDocumentScreen.abrir(context, LegalDoc.termos),
+                                child: const Text('Termos de Uso', style: TextStyle(fontSize: 12, color: verdeEscuro, fontWeight: FontWeight.w700)),
+                              ),
+                              Text(' e a ', style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                              GestureDetector(
+                                onTap: () => LegalDocumentScreen.abrir(context, LegalDoc.privacidade),
+                                child: const Text('Política de Privacidade', style: TextStyle(fontSize: 12, color: verdeEscuro, fontWeight: FontWeight.w700)),
+                              ),
+                              Text('.', style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: _loading ? null : _criar,
                   child: _loading

@@ -5,6 +5,7 @@ import '../core/constants.dart';
 import '../core/theme.dart';
 import '../widgets/gft_logo_image.dart';
 import '../widgets/contatos_card.dart';
+import 'legal/legal_document_screen.dart';
 
 class SobreScreen extends StatelessWidget {
   const SobreScreen({super.key});
@@ -72,6 +73,32 @@ class SobreScreen extends StatelessWidget {
 
           const SizedBox(height: 16),
           const ContatosCard(),
+
+          const SizedBox(height: 16),
+
+          _Card(child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Row(children: [
+              const Icon(Icons.gavel_outlined, color: verdeEscuro, size: 20),
+              const SizedBox(width: 8),
+              const Text('Documentos legais', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
+            ]),
+            const Divider(height: 20),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.description_outlined, color: verdeEscuro),
+              title: const Text('Termos e Condições de Uso'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => LegalDocumentScreen.abrir(context, LegalDoc.termos),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.privacy_tip_outlined, color: verdeEscuro),
+              title: const Text('Política de Privacidade'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => LegalDocumentScreen.abrir(context, LegalDoc.privacidade),
+            ),
+          ])),
 
           const SizedBox(height: 16),
 

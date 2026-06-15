@@ -9,6 +9,7 @@ import '../../core/auth/credential_remember_service.dart';
 import '../../core/app_version.dart';
 import '../../core/constants.dart';
 import '../../core/theme.dart';
+import '../legal/legal_document_screen.dart';
 import 'criar_conta_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -630,7 +631,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
+                LegalLinksRow(
+                  style: const TextStyle(fontSize: 11, color: Colors.white70, decoration: TextDecoration.underline),
+                ),
+                const SizedBox(height: 12),
                 const Text(
                   'SM BJJ © 2018 · Todos os direitos reservados',
                   style: TextStyle(color: Colors.white38, fontSize: 11),
