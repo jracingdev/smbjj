@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <base href="/smbjj/">
+  <base href="/">
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="App e acesso web da academia CT SM BJJ — aulas, perfil, loja e gestão para alunos e equipe.">
@@ -16,8 +16,8 @@
   <meta property="og:site_name" content="CT SM BJJ Academia">
   <meta property="og:title" content="CT SM BJJ Academia">
   <meta property="og:description" content="App e acesso web da academia CT SM BJJ — aulas, perfil, loja e gestão para alunos e equipe.">
-  <meta property="og:url" content="https://jracingdev.github.io/smbjj/">
-  <meta property="og:image" content="https://jracingdev.github.io/smbjj/favicon.png">
+  <meta property="og:url" content="https://smbjj.com.br/">
+  <meta property="og:image" content="https://smbjj.com.br/favicon.png">
   <meta property="og:image:width" content="1254">
   <meta property="og:image:height" content="1254">
   <meta property="og:image:alt" content="Logo CT SM BJJ Academia">
@@ -27,7 +27,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="CT SM BJJ Academia">
   <meta name="twitter:description" content="App e acesso web da academia CT SM BJJ — aulas, perfil, loja e gestão para alunos e equipe.">
-  <meta name="twitter:image" content="https://jracingdev.github.io/smbjj/favicon.png">
+  <meta name="twitter:image" content="https://smbjj.com.br/favicon.png">
 
   <link rel="apple-touch-icon" href="favicon.png">
   <link rel="icon" type="image/png" href="favicon.png"/>
@@ -40,7 +40,7 @@
     // Migração única: limpa service worker antigo (ex.: v1.7.0) que impedia ?loja=publica.
     (function () {
       var migrationKey = 'ct_sm_bjj_sw_migration';
-      var migrationVersion = 'v1.7.8';
+      var migrationVersion = 'v1.7.14-domain';
       if (localStorage.getItem(migrationKey) === migrationVersion) return;
       localStorage.setItem(migrationKey, migrationVersion);
       if ('serviceWorker' in navigator) {
