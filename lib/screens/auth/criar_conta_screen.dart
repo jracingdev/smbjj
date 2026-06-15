@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/app_platform.dart';
 import '../../core/auth/auth_provider.dart';
 import '../../core/auth/auth_result.dart';
+import '../../core/legal/termo_aceite_service.dart';
 import '../../core/theme.dart';
 import '../legal/legal_document_screen.dart';
 
@@ -20,6 +21,8 @@ class _CriarContaScreenState extends State<CriarContaScreen> {
   final _confirmaSenhaCtrl = TextEditingController();
   bool _loading = false;
   bool _aceitouTermos = false;
+  bool _aceitouAptidao = false;
+  bool _pendenteAceiteGoogle = false;
   String? _erro;
   String? _sucesso;
   AuthProvider? _authProv;
@@ -36,8 +39,30 @@ class _CriarContaScreenState extends State<CriarContaScreen> {
   void _onAuthChanged() {
     if (!mounted || _authProv == null) return;
     if (_authProv!.autenticado) {
+      if (_pendenteAceiteGoogle) {
+        _pendenteAceiteGoogle = false;
+        _registrarAceites(
+          nome: _authProv!.usuario?.nome ?? _nomeCtrl.text.trim(),
+          email: _authProv!.usuario?.email ?? _emailCtrl.text.trim(),
+          userId: _authProv!.usuario?.id,
+        );
+      }
       Navigator.of(context).popUntil((route) => route.isFirst);
     }
+  }
+
+  Future<void> _registrarAceites({
+    required String nome,
+    required String email,
+    String? userId,
+  }) async {
+    await TermoAceiteService.instance.registrarAceitesCadastro(
+      nome: nome,
+      email: email,
+      userId: userId,
+      termosUso: _aceitouTermos,
+      aptidaoFisica: _aceitouAptidao,
+    );
   }
 
   @override
@@ -53,6 +78,10 @@ class _CriarContaScreenState extends State<CriarContaScreen> {
   Future<void> _criar() async {
     if (!_aceitouTermos) {
       setState(() => _erro = 'Aceite os Termos de Uso e a Política de Privacidade para continuar.');
+      return;
+    }
+    if (!_aceitouAptidao) {
+      setState(() => _erro = 'Aceite o Termo de Aptidão Física e Responsabilidade para continuar.');
       return;
     }
     if (_nomeCtrl.text.trim().isEmpty) {
@@ -95,6 +124,12 @@ class _CriarContaScreenState extends State<CriarContaScreen> {
       }
 
       if (result.sessaoIniciada) {
+        final auth = context.read<AuthProvider>();
+        await _registrarAceites(
+          nome: _nomeCtrl.text.trim(),
+          email: _emailCtrl.text.trim(),
+          userId: auth.usuario?.id,
+        );
         if (mounted) Navigator.of(context).popUntil((route) => route.isFirst);
         return;
       }
@@ -110,6 +145,11 @@ class _CriarContaScreenState extends State<CriarContaScreen> {
       setState(() => _erro = 'Aceite os Termos de Uso e a Política de Privacidade para continuar.');
       return;
     }
+    if (!_aceitouAptidao) {
+      setState(() => _erro = 'Aceite o Termo de Aptidão Física e Responsabilidade para continuar.');
+      return;
+    }
+    _pendenteAceiteGoogle = true;
     setState(() {
       _loading = true;
       _erro = null;
@@ -264,6 +304,41 @@ class _CriarContaScreenState extends State<CriarContaScreen> {
                                 child: const Text('Política de Privacidade', style: TextStyle(fontSize: 12, color: verdeEscuro, fontWeight: FontWeight.w700)),
                               ),
                               Text('.', style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Checkbox(
+                      value: _aceitouAptidao,
+                      activeColor: verdeEscuro,
+                      onChanged: _loading ? null : (v) => setState(() => _aceitouAptidao = v ?? false),
+                    ),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: _loading ? null : () => setState(() => _aceitouAptidao = !_aceitouAptidao),
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Li e Concordo — Aptidão Física',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: verdeEscuro),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Declaro aptidão para Jiu-Jitsu, assumo os riscos da prática e isento a Marinho Team Jiu-Jitsu. '
+                                'Sou maior de 18 anos ou tenho autorização do responsável legal. '
+                                'Detalhes no Termo de Aptidão dentro dos Termos de Uso.',
+                                style: TextStyle(fontSize: 11, color: Colors.grey.shade700, height: 1.35),
+                              ),
                             ],
                           ),
                         ),

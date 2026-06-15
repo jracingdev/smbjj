@@ -303,7 +303,29 @@ class _PedidoAdminCardState extends State<_PedidoAdminCard> {
               Container(width: 4, height: 48, decoration: BoxDecoration(color: cor, borderRadius: BorderRadius.circular(2))),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(p.produtoNome, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(p.produtoNome, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                    ),
+                    Container(
+                      margin: const EdgeInsets.only(left: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: (p.compradorVisitante ? Colors.deepPurple : verdeEscuro).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        p.compradorVisitante ? '🌐 Visitante' : '🥋 Aluno',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          color: p.compradorVisitante ? Colors.deepPurple.shade700 : verdeEscuro,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
                 Text('${p.alunoNome} · ${p.quantidade}x R\$ ${p.valorTotal.toStringAsFixed(2)}',
                     style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                 if (p.varianteLabel.isNotEmpty)
@@ -363,7 +385,7 @@ class _PedidoAdminCardState extends State<_PedidoAdminCard> {
             const Divider(),
 
             // Dados do aluno
-            _infoRow(Icons.person_outline, 'Aluno', p.alunoNome),
+            _infoRow(Icons.person_outline, p.compradorVisitante ? 'Visitante (loja web)' : 'Aluno logado', p.alunoNome),
             if (p.alunoTelefone != null) _infoRow(Icons.phone_outlined, 'Telefone', p.alunoTelefone!),
             if (p.alunoEmail != null) _infoRow(Icons.email_outlined, 'Email', p.alunoEmail!),
             if (p.observacoes != null) _infoRow(Icons.comment_outlined, 'Obs. aluno', p.observacoes!),

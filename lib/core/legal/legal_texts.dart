@@ -31,8 +31,8 @@ O App destina-se à gestão da academia e relacionamento com alunos, incluindo, 
 Após criar a conta no App, o aluno pode complementar dados na academia. A matrícula e a validação do cadastro dependem de aprovação do professor/administrador.
 
 6. LOJA E COMPRAS
-6.1. A loja interna destina-se a alunos cadastrados; a loja pública online pode ser acessada por visitantes mediante link fornecido pela academia.
-6.2. Pedidos estão sujeitos à confirmação, disponibilidade de estoque e combinação de pagamento/entrega com a academia.
+6.1. O site principal (smbjj.com.br) exibe a loja para visitantes; alunos e equipe acessam o app completo após login.
+6.2. Visitantes podem comprar informando nome e contato; alunos logados compram com dados vinculados ao cadastro.
 6.3. Preços, prazos e condições exibidos no App podem ser alterados sem aviso prévio, respeitados pedidos já confirmados.
 
 7. PAGAMENTOS
@@ -58,6 +58,26 @@ Aplica-se a legislação brasileira. Fica eleito o foro da comarca do Rio de Jan
 
 14. CONTATO
 Dúvidas sobre estes Termos: $developerEmail · WhatsApp $professorTelefoneExibicao.
+
+---
+
+TERMO DE APTIDÃO FÍSICA E RESPONSABILIDADE
+
+Declaro que li e concordo com os termos abaixo:
+
+✓ Estou em condições físicas e de saúde adequadas para a prática de Jiu-Jitsu.
+
+✓ Declaro não possuir doença, lesão, limitação física ou qualquer condição médica pré-existente que impeça ou contraindique minha participação nos treinamentos.
+
+✓ Comprometo-me a informar imediatamente à equipe ou aos instrutores caso haja qualquer alteração em meu estado de saúde.
+
+✓ Tenho ciência de que a prática do Jiu-Jitsu envolve contato físico e riscos inerentes à atividade esportiva, incluindo quedas, contusões, torções e outras lesões.
+
+✓ Assumo total responsabilidade pelas informações prestadas e pela minha participação nas atividades, isentando a Marinho Team Jiu-Jitsu, seus professores e colaboradores de responsabilidade por problemas de saúde ou condições médicas não informadas previamente.
+
+✓ Declaro ser maior de 18 anos ou possuir autorização de meu responsável legal para participar das atividades.
+
+Ao marcar a opção "Li e Concordo" no cadastro, declaro que as informações acima são verdadeiras e que aceito integralmente os termos desta declaração. O sistema registra automaticamente seu nome, e-mail, data, hora e endereço IP do aceite para fins de comprovação.
 ''';
 
   static String get privacidade => '''

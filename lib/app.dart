@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
+import 'core/app_platform.dart';
 import 'core/auth/auth_provider.dart';
 import 'core/loja/loja_publica_pending.dart';
 import 'core/loja/loja_publica_url.dart';
@@ -43,18 +44,23 @@ class _CtSmBjjAppState extends State<CtSmBjjApp> {
         builder: (context, auth, _) {
           sincronizarLojaPublicaDaUrl();
 
-          // Link público (?loja=publica) abre a loja sem login.
-          if (LojaPublicaPending.ativo) {
-            return const LojaPublicaScreen();
-          }
-
           if (auth.carregando) {
             return const Scaffold(
               backgroundColor: verdeEscuro,
               body: Center(child: CircularProgressIndicator(color: Colors.white)),
             );
           }
-          return auth.autenticado ? const CadastroGate() : const LoginScreen();
+
+          if (auth.autenticado) {
+            return const CadastroGate();
+          }
+
+          // Web: home = loja e-commerce; app nativo = login.
+          if (isWebApp || LojaPublicaPending.ativo) {
+            return const LojaPublicaScreen();
+          }
+
+          return const LoginScreen();
         },
       ),
     );

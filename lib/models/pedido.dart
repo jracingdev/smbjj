@@ -77,6 +77,9 @@ class Pedido {
     return parts.isEmpty ? '' : parts.join(' / ');
   }
 
+  /// Pedido feito por visitante na loja web (sem login de aluno).
+  bool get compradorVisitante => alunoId == null || alunoId!.isEmpty;
+
   factory Pedido.fromMap(Map<String, dynamic> m) => Pedido(
         id: m['id'],
         alunoId: m['aluno_id'],

@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../utils/image_utils.dart';
+import '../../widgets/produto_imagem_ampliada.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:uuid/uuid.dart';
@@ -159,7 +160,7 @@ class _LojaScreenState extends State<LojaScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Compartilhe este link para vender para quem não é aluno da academia:'),
+                        const Text('Compartilhe o site da loja (smbjj.com.br) — visitantes compram sem login; alunos entram pelo botão Entrar:'),
             const SizedBox(height: 10),
             SelectableText(link, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
             const SizedBox(height: 8),
@@ -254,7 +255,7 @@ class _LojaScreenState extends State<LojaScreen> {
                               style: TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: verdeEscuro),
                             ),
                             Text(
-                              'Venda online para visitantes — toque para copiar e compartilhar',
+                              'Venda online em smbjj.com.br — visitantes compram sem login',
                               style: TextStyle(fontSize: 11, color: Colors.grey.shade700, height: 1.3),
                             ),
                           ],
@@ -685,10 +686,19 @@ class _ProdutoCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  _ProdutoImagem(
-                    fotoUrl: produto.fotoUrl,
-                    youtubeThumb: produto.youtubeThumbnail,
-                    priorizarVideo: produto.temVideoYouTube,
+                  GestureDetector(
+                    onTap: () => ProdutoImagemAmpliada.mostrar(
+                      context,
+                      titulo: produto.nome,
+                      fotoUrl: produto.fotoUrl,
+                      youtubeThumb: produto.youtubeThumbnail,
+                      priorizarVideo: produto.temVideoYouTube,
+                    ),
+                    child: _ProdutoImagem(
+                      fotoUrl: produto.fotoUrl,
+                      youtubeThumb: produto.youtubeThumbnail,
+                      priorizarVideo: produto.temVideoYouTube,
+                    ),
                   ),
                   if (isAdmin && !produto.ativo)
                     Positioned(

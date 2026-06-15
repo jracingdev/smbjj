@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants.dart';
-import '../../core/loja/loja_publica_pending.dart';
 import '../../core/supabase_errors.dart';
 import '../../core/theme.dart';
 import '../../models/pedido.dart';
@@ -11,6 +10,7 @@ import '../../repositories/pedido_repository.dart';
 import '../../repositories/produto_repository.dart';
 import '../../utils/loja_tamanhos.dart';
 import '../../widgets/produto_imagem.dart';
+import '../../widgets/produto_imagem_ampliada.dart';
 import '../auth/login_screen.dart';
 import '../legal/legal_document_screen.dart';
 
@@ -210,8 +210,7 @@ class _LojaPublicaScreenState extends State<LojaPublicaScreen> {
   }
 
   void _entrar() {
-    LojaPublicaPending.desativar();
-    Navigator.of(context).pushReplacement(
+    Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
     );
   }
@@ -243,7 +242,7 @@ class _LojaPublicaScreenState extends State<LojaPublicaScreen> {
                   onPressed: _entrar,
                   icon: const Icon(Icons.login, color: Colors.white, size: 18),
                   label: const Text(
-                    'Entrar',
+                    'Sou aluno',
                     style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
                   ),
                 ),
@@ -539,19 +538,37 @@ class _ProdutoPublicoCardState extends State<_ProdutoPublicoCard> {
           elevation: elevation,
           shadowColor: Colors.black26,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          child: InkWell(
-            onTap: widget.onComprar,
-            child: Column(
+          child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 AspectRatio(
                   aspectRatio: 1,
-                  child: ProdutoImagem(
-                    fotoUrl: widget.produto.fotoUrl,
-                    youtubeThumb: widget.produto.youtubeThumbnail,
-                    priorizarVideo: widget.produto.temVideoYouTube,
-                    fit: BoxFit.contain,
-                    padding: const EdgeInsets.all(10),
+                  child: GestureDetector(
+                    onTap: () => ProdutoImagemAmpliada.mostrarProduto(context, widget.produto),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        ProdutoImagem(
+                          fotoUrl: widget.produto.fotoUrl,
+                          youtubeThumb: widget.produto.youtubeThumbnail,
+                          priorizarVideo: widget.produto.temVideoYouTube,
+                          fit: BoxFit.contain,
+                          padding: const EdgeInsets.all(10),
+                        ),
+                        Positioned(
+                          right: 6,
+                          bottom: 6,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.black45,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.zoom_in, color: Colors.white, size: 18),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 Padding(
@@ -645,7 +662,6 @@ class _ProdutoPublicoCardState extends State<_ProdutoPublicoCard> {
             ),
           ),
         ),
-      ),
     );
   }
 }
@@ -766,16 +782,19 @@ class _CompraPublicaSheetState extends State<_CompraPublicaSheet> {
               ),
             ),
             const SizedBox(height: 16),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: AspectRatio(
-                aspectRatio: 1,
-                child: ProdutoImagem(
-                  fotoUrl: p.fotoUrl,
-                  youtubeThumb: p.youtubeThumbnail,
-                  priorizarVideo: p.temVideoYouTube,
-                  fit: BoxFit.contain,
-                  padding: const EdgeInsets.all(16),
+            GestureDetector(
+              onTap: () => ProdutoImagemAmpliada.mostrarProduto(context, p),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: AspectRatio(
+                  aspectRatio: 1,
+                  child: ProdutoImagem(
+                    fotoUrl: p.fotoUrl,
+                    youtubeThumb: p.youtubeThumbnail,
+                    priorizarVideo: p.temVideoYouTube,
+                    fit: BoxFit.contain,
+                    padding: const EdgeInsets.all(16),
+                  ),
                 ),
               ),
             ),
