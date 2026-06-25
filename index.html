@@ -1,7 +1,16 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <base href="/smbjj/">
+  <script>
+    // Domínio próprio (smbjj.com.br) = raiz "/". GitHub Pages = subpasta "/smbjj/".
+    (function () {
+      var b = document.createElement('base');
+      var onGithubPages = location.hostname.endsWith('github.io');
+      var inSmbjjPath = location.pathname === '/smbjj/' || location.pathname.indexOf('/smbjj/') === 0;
+      b.href = (onGithubPages && inSmbjjPath) ? '/smbjj/' : '/';
+      document.head.appendChild(b);
+    })();
+  </script>
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="App e acesso web da academia CT SM BJJ — aulas, perfil, loja e gestão para alunos e equipe.">
