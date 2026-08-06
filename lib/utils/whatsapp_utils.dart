@@ -107,7 +107,8 @@ Future<void> enviarCobranca({
   await abrirWhatsApp(telefone, msg);
 }
 
-/// Abre WhatsApp em sequência para cada aluno pendente (um por vez — simples e compatível com web).
+/// Envia cobrança a todos de uma vez: uma confirmação e abre os WhatsApps em sequência
+/// automática (sem diálogo por aluno).
 Future<void> enviarCobrancaLote({
   required BuildContext context,
   required String tipo,
@@ -146,43 +147,39 @@ Future<void> enviarCobrancaLote({
     builder: (ctx) => AlertDialog(
       title: Text('Enviar $tipoLabel'),
       content: Text(
-        'Será aberto o WhatsApp de ${comTelefone.length} aluno(s), um por vez.\n'
+        'Serão abertas ${comTelefone.length} conversas do WhatsApp em sequência automática '
+        '(todos de uma vez, sem confirmar um a um).\n'
         '${semTelefone.isNotEmpty ? "\nSem telefone (${semTelefone.length}): ${semTelefone.join(", ")}" : ""}\n\n'
-        'Após enviar cada mensagem, volte aqui e toque em *Próximo*.',
+        'Deixe o app em primeiro plano até concluir.',
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-        ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Iniciar')),
+        ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Enviar a todos')),
       ],
     ),
   );
   if (okInicio != true || !context.mounted) return;
 
-  for (var i = 0; i < comTelefone.length; i++) {
-    if (!context.mounted) return;
-    final item = comTelefone[i];
-    final nome = item.aluno.nome;
-
-    final acao = await showDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: Text('${i + 1} de ${comTelefone.length}'),
-        content: Text('Abrir WhatsApp para $nome?\nValor: R\$ ${item.valor.toStringAsFixed(2)}'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, 'parar'), child: const Text('Parar')),
-          TextButton(onPressed: () => Navigator.pop(ctx, 'pular'), child: const Text('Pular')),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, 'enviar'),
-            child: const Text('Abrir WhatsApp'),
+  // Progresso único enquanto dispara todos.
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => AlertDialog(
+      content: Row(
+        children: [
+          const CircularProgressIndicator(),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text('Enviando para ${comTelefone.length} aluno(s)...'),
           ),
         ],
       ),
-    );
+    ),
+  );
 
-    if (acao == 'parar' || acao == null) break;
-    if (acao == 'pular') continue;
-
+  var enviados = 0;
+  for (final item in comTelefone) {
+    if (!context.mounted) return;
     await enviarCobranca(
       tipo: tipo,
       aluno: item.aluno,
@@ -191,11 +188,18 @@ Future<void> enviarCobrancaLote({
       valor: item.valor,
       diaVencimento: diaVencimento,
     );
+    enviados++;
+    // Pequena pausa para o SO conseguir abrir cada link sem perder.
+    await Future.delayed(const Duration(milliseconds: 700));
   }
 
   if (context.mounted) {
+    Navigator.of(context, rootNavigator: true).pop(); // fecha progresso
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Envio em lote concluído.'), backgroundColor: Colors.green),
+      SnackBar(
+        content: Text('Cobrança disparada para $enviados aluno(s).'),
+        backgroundColor: Colors.green,
+      ),
     );
   }
 }

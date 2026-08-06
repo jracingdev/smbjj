@@ -73,7 +73,7 @@ class AlunoRepository {
 
   Future<List<Aluno>> pendentesValidacao() async {
     final data = await supabase.from('alunos').select()
-        .eq('cadastro_validado', false).order('created_at', ascending: false);
+        .eq('cadastro_validado', false).order('nome');
     return (data as List).map((m) => Aluno.fromMap(m)).toList();
   }
 

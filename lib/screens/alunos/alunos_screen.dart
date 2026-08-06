@@ -68,7 +68,7 @@ class AlunosScreenState extends State<AlunosScreen> {
   }
 
   List<Aluno> get _filtrados {
-    return _alunos.where((a) {
+    final lista = _alunos.where((a) {
       final matchBusca = a.nome.toLowerCase().contains(_busca.toLowerCase());
       final matchFaixa = _filtroFaixa.isEmpty || a.faixa == _filtroFaixa;
       final matchStatus = _filtroStatus == 'todos'
@@ -82,6 +82,8 @@ class AlunosScreenState extends State<AlunosScreen> {
       final matchTurma = _filtroTurma.isEmpty || turmasAluno.any((t) => t.id == _filtroTurma);
       return matchBusca && matchFaixa && matchStatus && matchTurma;
     }).toList();
+    lista.sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase()));
+    return lista;
   }
 
   Future<void> _deletar(Aluno a) async {

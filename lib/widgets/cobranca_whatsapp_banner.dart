@@ -78,7 +78,7 @@ class CobrancaWhatsAppBanner extends StatelessWidget {
                     itens: itens,
                   ),
                   icon: const Icon(Icons.send, size: 16),
-                  label: Text('Automatizar hoje (${pendentes.length})'),
+                  label: Text('Enviar a todos (${pendentes.length})'),
                   style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 36)),
                 ),
               ),

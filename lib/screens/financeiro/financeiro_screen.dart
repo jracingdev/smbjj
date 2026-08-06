@@ -629,7 +629,51 @@ class _MensalidadesTabState extends State<_MensalidadesTab> {
       if (q.isEmpty) return true;
       final nome = (m.alunoNome ?? '').toLowerCase();
       return nome.contains(q);
-    }).toList();
+    }).toList()
+      ..sort((a, b) => (a.alunoNome ?? '').toLowerCase().compareTo((b.alunoNome ?? '').toLowerCase()));
+  }
+
+  Future<void> _editarValorMensalidade(Mensalidade m) async {
+    final ctrl = TextEditingController(text: m.valor.toStringAsFixed(2));
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Editar valor da mensalidade'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(m.alunoNome ?? 'Aluno', style: const TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 12),
+            TextField(
+              controller: ctrl,
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              decoration: const InputDecoration(
+                labelText: 'Valor (R\$)',
+                prefixText: 'R\$ ',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Salvar')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final novo = double.tryParse(ctrl.text.replaceAll(',', '.').trim());
+    if (novo == null || novo <= 0) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Informe um valor válido.'), backgroundColor: Colors.orange),
+        );
+      }
+      return;
+    }
+    await MensalidadeRepository().atualizar(m.copyWith(valor: novo));
+    widget.onRefresh();
   }
 
   Future<void> _lembreteTurma(BuildContext context) async {
@@ -664,17 +708,22 @@ class _MensalidadesTabState extends State<_MensalidadesTab> {
       ),
     );
     if (ok != true) return;
-    for (final m in pendentes) {
-      final aluno = widget.alunos.firstWhere((a) => a.id == m.alunoId, orElse: () => Aluno(id: m.alunoId, nome: m.alunoNome ?? '?'));
-      await enviarCobranca(
-        tipo: 'aviso5',
-        aluno: aluno,
-        mes: widget.mes,
-        ano: widget.ano,
-        valor: m.valor,
-        diaVencimento: widget.config.diaVencimento,
+    final itens = pendentes.map((m) {
+      final aluno = widget.alunos.firstWhere(
+        (a) => a.id == m.alunoId,
+        orElse: () => Aluno(id: m.alunoId, nome: m.alunoNome ?? '?'),
       );
-    }
+      return (aluno: aluno, valor: m.valor);
+    }).toList();
+    if (!context.mounted) return;
+    await enviarCobrancaLote(
+      context: context,
+      tipo: 'aviso5',
+      mes: widget.mes,
+      ano: widget.ano,
+      diaVencimento: widget.config.diaVencimento,
+      itens: itens,
+    );
   }
 
   @override
@@ -808,6 +857,7 @@ class _MensalidadesTabState extends State<_MensalidadesTab> {
                   onPago: m.status != 'pago' ? () => marcarPago(m) : null,
                   onDesfazer: m.status == 'pago' ? () => desfazer(m) : null,
                   onDelete: () => deletar(m),
+                  onEditarValor: () => _editarValorMensalidade(m),
                   onWhatsapp: (tipo) => enviarCobranca(
                     tipo: tipo,
                     aluno: aluno,
@@ -1169,7 +1219,7 @@ class _MensalidadeCard extends StatelessWidget {
   final Mensalidade mensalidade;
   final Aluno aluno;
   final int diaVencimento;
-  final VoidCallback? onPago, onDesfazer, onDelete;
+  final VoidCallback? onPago, onDesfazer, onDelete, onEditarValor;
   final Function(String) onWhatsapp;
 
   const _MensalidadeCard({
@@ -1179,6 +1229,7 @@ class _MensalidadeCard extends StatelessWidget {
     this.onPago,
     this.onDesfazer,
     required this.onDelete,
+    this.onEditarValor,
     required this.onWhatsapp,
   });
 
@@ -1203,7 +1254,23 @@ class _MensalidadeCard extends StatelessWidget {
             Text(mensalidade.observacao!, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
         ])),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Text('R\$ ${mensalidade.valor.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+          InkWell(
+            onTap: onEditarValor,
+            borderRadius: BorderRadius.circular(6),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('R\$ ${mensalidade.valor.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                  if (onEditarValor != null) ...[
+                    const SizedBox(width: 4),
+                    Icon(Icons.edit, size: 14, color: Colors.grey.shade600),
+                  ],
+                ],
+              ),
+            ),
+          ),
           Text(label, style: TextStyle(fontSize: 11, color: cor, fontWeight: FontWeight.w600)),
         ]),
       ]),
@@ -1212,6 +1279,12 @@ class _MensalidadeCard extends StatelessWidget {
         Row(children: [
           Expanded(child: ElevatedButton.icon(onPressed: onPago, icon: const Icon(Icons.check, size: 16), label: const Text('Marcar Pago'), style: ElevatedButton.styleFrom(visualDensity: VisualDensity.compact))),
           const SizedBox(width: 8),
+          if (onEditarValor != null)
+            IconButton(
+              tooltip: 'Editar valor',
+              onPressed: onEditarValor,
+              icon: Icon(Icons.edit_outlined, color: Colors.blueGrey.shade700, size: 20),
+            ),
           PopupMenuButton<String>(
             onSelected: onWhatsapp,
             icon: Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: Colors.green.shade100, borderRadius: BorderRadius.circular(8)),
@@ -1227,6 +1300,12 @@ class _MensalidadeCard extends StatelessWidget {
         ]),
       ] else
         Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+          if (onEditarValor != null)
+            TextButton.icon(
+              onPressed: onEditarValor,
+              icon: const Icon(Icons.edit_outlined, size: 16),
+              label: const Text('Valor'),
+            ),
           TextButton(onPressed: onDesfazer, child: const Text('Desfazer', style: TextStyle(color: Colors.grey))),
           IconButton(onPressed: onDelete, icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20)),
         ]),
