@@ -30,7 +30,7 @@ android {
 
     defaultConfig {
         applicationId = "com.smbijj.ct_sm_bjj"
-        minSdk = 23
+        minSdk = flutter.minSdkVersion
         // Google Play exige target API 36 (Android 16) a partir de 31/08/2026.
         targetSdk = 36
         versionCode = flutter.versionCode
