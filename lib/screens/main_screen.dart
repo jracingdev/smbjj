@@ -233,7 +233,7 @@ class _MainScreenState extends State<MainScreen> {
             aniversarioHoje(aluno.dataNascimento) &&
             mounted) {
           final anivSvc = AniversarioAvisoService();
-          if (await anivSvc.celebracaoPendente()) {
+          if (await anivSvc.celebracaoPendente() && mounted) {
             _celebracaoMostrada = true;
             await mostrarCelebracaoAniversario(context, aluno.nome);
             await anivSvc.marcarCelebracaoVisto();
