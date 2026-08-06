@@ -1,0 +1,105 @@
+name: Deploy Web (GitHub Pages)
+
+on:
+  push:
+    branches: [master, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Dependencies
+        run: flutter pub get
+
+      - name: Build web
+        run: flutter build web --release --base-href "/" --no-wasm-dry-run
+
+      - name: Patch bootstrap (sem service worker)
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path("build/web/flutter_bootstrap.js")
+          c = p.read_text(encoding="utf-8")
+          c2 = re.sub(
+              r"_flutter\.loader\.load\(\{\s*serviceWorkerSettings:\s*\{[^}]+\}\s*\}\);",
+              "_flutter.loader.load({});",
+              c,
+          )
+          p.write_text(c2, encoding="utf-8")
+          print("flutter_bootstrap.js patched")
+          PY
+
+      - name: Base href dinamico + assets estaticos
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import shutil
+          index = Path("build/web/index.html")
+          html = index.read_text(encoding="utf-8")
+          dynamic = '''  <script>
+            // Dominio proprio (smbjj.com.br) = raiz "/". GitHub Pages = subpasta "/smbjj/".
+            (function () {
+              var b = document.createElement('base');
+              var onGithubPages = location.hostname.endsWith('github.io');
+              var inSmbjjPath = location.pathname === '/smbjj/' || location.pathname.indexOf('/smbjj/') === 0;
+              b.href = (onGithubPages && inSmbjjPath) ? '/smbjj/' : '/';
+              document.head.appendChild(b);
+            })();
+          </script>'''
+          html = html.replace('<base href="/">', dynamic)
+          html = html.replace('https://smbjj.com.br/favicon.png', 'https://smbjj.com.br/og-image-1200x630.png')
+          html = html.replace('content="1254"', 'content="1200"', 1)
+          # height pode ainda ser 1254
+          html = html.replace('og:image:height" content="1254"', 'og:image:height" content="630"')
+          index.write_text(html, encoding="utf-8")
+          static = Path("web/static_pages")
+          for name in [
+              "CNAME",
+              "exclusao-de-dados.html",
+              "politica-privacidade.html",
+              "termos-de-uso.html",
+              "og-image-1200x630.png",
+          ]:
+              src = static / name
+              if src.exists():
+                  shutil.copy2(src, Path("build/web") / name)
+                  print("copied", name)
+          Path("build/web/.nojekyll").write_text("", encoding="utf-8")
+          print("index patched")
+          PY
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
