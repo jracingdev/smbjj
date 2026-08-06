@@ -306,14 +306,19 @@ class _AlunoFormScreenState extends State<AlunoFormScreen> {
             ),
 
           // ── Dados Pessoais ──────────────────────────
-          _secao('Dados Pessoais'),
-          _campo(_nomeCtrl, 'Nome Completo *'),
+          _secao('Dados do aluno'),
+          _campo(
+            _nomeCtrl,
+            'Nome do aluno *',
+            hint: 'Nome de quem vai treinar (não do responsável)',
+            helper: 'Se for menor de idade, preencha aqui o nome do aluno — o responsável fica na seção abaixo.',
+          ),
           _campo(_emailCtrl, 'Email', type: TextInputType.emailAddress),
           Row(children: [
             Expanded(
               child: _campo(
                 _nascCtrl,
-                'Nascimento *',
+                'Nascimento do aluno *',
                 hint: hintDataNascimento,
                 onChanged: (_) => setState(() {}),
                 inputFormatters: [DataNascimentoInputFormatter()],
@@ -334,13 +339,36 @@ class _AlunoFormScreenState extends State<AlunoFormScreen> {
           Row(children: [
             Expanded(child: _campo(_pesoCtrl, 'Peso (kg)', type: TextInputType.number)),
             const SizedBox(width: 12),
-            Expanded(child: _campo(_telefoneCtrl, 'Telefone', type: TextInputType.phone)),
+            Expanded(child: _campo(_telefoneCtrl, 'Telefone do aluno', type: TextInputType.phone)),
           ]),
 
           // ── Responsável ─────────────────────────────
-          _secao('Responsável (se menor)'),
-          _campo(_respNomeCtrl, 'Nome do Responsável'),
-          _campo(_respTelCtrl, 'Telefone do Responsável', type: TextInputType.phone),
+          _secao('Responsável (obrigatório se menor de 18)'),
+          if (idade != null && idade < 18)
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.amber.shade50,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.amber.shade300),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.info_outline, color: Colors.amber.shade900, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Aluno menor de idade: o campo acima é o NOME DO ALUNO. Preencha abaixo o nome e telefone do responsável.',
+                      style: TextStyle(fontSize: 12, color: Colors.amber.shade900, height: 1.35),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          _campo(_respNomeCtrl, 'Nome do responsável', hint: 'Pai, mãe ou responsável legal'),
+          _campo(_respTelCtrl, 'Telefone do responsável', type: TextInputType.phone),
 
           // ── Endereço com busca por CEP ───────────────
           _secao('Endereço'),
@@ -488,6 +516,7 @@ class _AlunoFormScreenState extends State<AlunoFormScreen> {
   Widget _campo(TextEditingController ctrl, String label,
       {TextInputType? type,
       String? hint,
+      String? helper,
       int? maxLength,
       ValueChanged<String>? onChanged,
       List<TextInputFormatter>? inputFormatters}) =>
@@ -495,7 +524,13 @@ class _AlunoFormScreenState extends State<AlunoFormScreen> {
         padding: const EdgeInsets.only(bottom: 12),
         child: TextField(
           controller: ctrl,
-          decoration: InputDecoration(labelText: label, hintText: hint, counterText: ''),
+          decoration: InputDecoration(
+            labelText: label,
+            hintText: hint,
+            helperText: helper,
+            helperMaxLines: 3,
+            counterText: '',
+          ),
           keyboardType: type,
           maxLength: maxLength,
           onChanged: onChanged,

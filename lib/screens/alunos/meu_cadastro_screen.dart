@@ -265,7 +265,8 @@ class _MeuCadastroScreenState extends State<MeuCadastroScreen> {
                     const SizedBox(height: 6),
                     const Text(
                       'Se entrou com Google, complete telefone, cidade e demais dados abaixo. '
-                      'Se seu e-mail já está na academia, vinculamos automaticamente. '
+                      'No campo NOME DO ALUNO digite quem vai treinar (não o responsável). '
+                      'Se for menor, o responsável fica na seção própria mais abaixo. '
                       'Faixa e turmas são definidas pelo professor após a validação.',
                       style: TextStyle(fontSize: 13),
                     ),
@@ -323,13 +324,18 @@ class _MeuCadastroScreenState extends State<MeuCadastroScreen> {
                 const SizedBox(height: 16),
               ],
             ],
-            _campo(_nomeCtrl, 'Nome Completo *'),
+            _campo(
+              _nomeCtrl,
+              'Nome do aluno *',
+              hint: 'Nome de quem vai treinar (não do responsável)',
+              helper: 'Se for menor de idade, digite aqui o nome do aluno. O responsável fica na seção abaixo.',
+            ),
             _campo(_emailCtrl, 'Email', type: TextInputType.emailAddress, readOnly: true),
             Row(children: [
               Expanded(
                 child: _campo(
                   _nascCtrl,
-                  'Nascimento *',
+                  'Nascimento do aluno *',
                   hint: hintDataNascimento,
                   onChanged: (_) => setState(() {}),
                   inputFormatters: [DataNascimentoInputFormatter()],
@@ -349,7 +355,7 @@ class _MeuCadastroScreenState extends State<MeuCadastroScreen> {
                 ),
               ),
             ]),
-            _campo(_telefoneCtrl, 'Telefone *', type: TextInputType.phone),
+            _campo(_telefoneCtrl, 'Telefone do aluno *', type: TextInputType.phone),
             _campo(_pesoCtrl, 'Peso (kg)', type: TextInputType.number),
             const SizedBox(height: 16),
             MesAnoPicker(
@@ -359,10 +365,37 @@ class _MeuCadastroScreenState extends State<MeuCadastroScreen> {
             ),
             const Padding(
               padding: EdgeInsets.only(top: 16, bottom: 8),
-              child: Text('Responsável (obrigatório se menor de 18)', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+              child: Text(
+                'Responsável (obrigatório se menor de 18)',
+                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              ),
             ),
-            _campo(_respNomeCtrl, 'Nome do Responsável'),
-            _campo(_respTelCtrl, 'Telefone do Responsável', type: TextInputType.phone),
+            if (idade != null && idade < 18)
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.amber.shade300),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline, color: Colors.amber.shade900, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Aluno menor de idade: o campo de cima é o NOME DO ALUNO. '
+                        'Aqui abaixo preencha o nome e telefone do responsável.',
+                        style: TextStyle(fontSize: 12, color: Colors.amber.shade900, height: 1.35),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            _campo(_respNomeCtrl, 'Nome do responsável', hint: 'Pai, mãe ou responsável legal'),
+            _campo(_respTelCtrl, 'Telefone do responsável', type: TextInputType.phone),
             const Padding(
               padding: EdgeInsets.only(top: 16, bottom: 8),
               child: Text('Endereço', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
@@ -417,6 +450,7 @@ class _MeuCadastroScreenState extends State<MeuCadastroScreen> {
     String label, {
     TextInputType? type,
     String? hint,
+    String? helper,
     int? maxLength,
     bool readOnly = false,
     ValueChanged<String>? onChanged,
@@ -427,7 +461,13 @@ class _MeuCadastroScreenState extends State<MeuCadastroScreen> {
         child: TextField(
           controller: ctrl,
           readOnly: readOnly,
-          decoration: InputDecoration(labelText: label, hintText: hint, counterText: ''),
+          decoration: InputDecoration(
+            labelText: label,
+            hintText: hint,
+            helperText: helper,
+            helperMaxLines: 3,
+            counterText: '',
+          ),
           keyboardType: type,
           maxLength: maxLength,
           onChanged: onChanged,
