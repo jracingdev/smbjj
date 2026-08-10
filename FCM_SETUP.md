@@ -115,15 +115,47 @@ O script valida as env vars no inicio e falha com mensagem clara se `SUPABASE_AC
 
 ---
 
-## 6) Database Webhooks (Dashboard)
+## 6) Disparar notify-admin no INSERT (recomendado: SQL / pg_net)
 
-A Management API não cria o webhook HTTP completo com headers customizados de forma simples — faça no Dashboard:
+### Se a UI de Webhooks falhar com `supabase_functions`
+
+Erro típico ao salvar no Dashboard:
+
+```text
+ERROR: 3F000: schema "supabase_functions" does not exist
+```
+
+A UI de Database Webhooks assume um schema interno (`supabase_functions`) que **não existe** em vários projetos. Não tente “criar esse schema na mão” — use a alternativa abaixo com **pg_net + triggers SQL** (mesmo destino HTTP da Edge Function).
+
+### Alternativa 100% SQL (use esta)
+
+Arquivo: `supabase_notify_admin_triggers.sql`
+
+1. Abra o [SQL Editor](https://supabase.com/dashboard/project/zhjnxspunbtyqhlyliuw/sql/new).
+2. Em **Settings → API**, Reveal da `service_role` (nunca a anon).
+3. No Editor, rode o **PASSO A** do SQL (bloco comentado no topo): descomente o `vault.create_secret(...)`, cole a service_role no lugar de `YOUR_SERVICE_ROLE_KEY` e execute **só essa linha**.  
+   A chave fica no **Vault** do projeto — **não** vai no git.
+4. Cole/rode o restante do arquivo (extensão `pg_net`, função `notify_admin_via_edge`, triggers `AFTER INSERT` em `public.alunos` e `public.pedidos`).
+5. Teste: cadastre um aluno ou faça um pedido; opcionalmente inspecione respostas:
+
+```sql
+select id, status_code, error_msg, content
+from net._http_response
+order by created desc
+limit 5;
+```
+
+O body enviado replica o formato Database Webhook (`type`, `table`, `schema`, `record`) que `notify-admin` já entende.
+
+### Opcional: Database Webhooks (Dashboard)
+
+Só se a UI funcionar no seu projeto. A Management API não cria o webhook HTTP completo com headers customizados de forma simples.
 
 Abra [Database Webhooks](https://supabase.com/dashboard/project/zhjnxspunbtyqhlyliuw/integrations/webhooks/overview) (ou **Database → Webhooks**).
 
 Crie **dois** webhooks idênticos, mudando só a tabela:
 
-### A) Novo aluno
+#### A) Novo aluno
 
 1. **Create a new hook**
 2. Name: `notify-admin-aluno`
@@ -139,11 +171,13 @@ Crie **dois** webhooks idênticos, mudando só a tabela:
    - (opcional) `x-webhook-secret` = mesmo valor de `FCM_WEBHOOK_SECRET`
 9. Salvar
 
-### B) Novo pedido
+#### B) Novo pedido
 
 - Igual ao A, name `notify-admin-pedido`, table `public.pedidos`, event **Insert**
 
 O body padrão do webhook já inclui `table`, `type`, `record` — a function monta título/mensagem.
+
+**Não use Webhooks UI e triggers SQL ao mesmo tempo** (push duplicado). Prefira só o SQL se a UI falhar.
 
 ---
 
@@ -181,6 +215,8 @@ curl -X POST "https://<PROJECT_REF>.supabase.co/functions/v1/notify-admin" \
 |---------|----------|
 | App roda sem push | `google-services.json` presente? Log `FcmService: Firebase Messaging pronto`? |
 | Token não grava | Usuário é `role = admin`? SQL `supabase_admin_fcm.sql` aplicado? |
+| UI Webhooks: `schema "supabase_functions" does not exist` | Ignore a UI; rode `supabase_notify_admin_triggers.sql` (seção 6) |
+| Trigger SQL sem push | Vault secret `notify_admin_service_role` criado (PASSO A)? `net._http_response` com 401/erro? |
 | Webhook / POST 401 | Header `Authorization: Bearer` com **service_role** (não anon); redeploy com `--no-verify-jwt`; no PS 5.1 preferir `curl.exe` ou o script `fcm_deploy_test.ps1` |
 | POST 200 + `nenhum token FCM` | Auth ok — falta login admin no app (grava em `admin_fcm_tokens`) |
 | Function 500 OAuth | JSON da service account completo (`project_id`, `client_email`, `private_key`) |
@@ -193,4 +229,5 @@ curl -X POST "https://<PROJECT_REF>.supabase.co/functions/v1/notify-admin" \
 - `lib/core/notifications/fcm_service.dart` — cliente FCM
 - `lib/core/notifications/local_notification_service.dart` — canal/ícone/som
 - `supabase_admin_fcm.sql` — tabela de tokens
+- `supabase_notify_admin_triggers.sql` — triggers pg_net → notify-admin (alternativa aos Webhooks UI)
 - `supabase/functions/notify-admin/` — envio FCM HTTP v1
