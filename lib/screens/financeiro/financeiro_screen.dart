@@ -708,7 +708,10 @@ class _MensalidadesTabState extends State<_MensalidadesTab> {
       ),
     );
     if (ok != true) return;
-    final itens = pendentes.map((m) {
+    // Apenas pendentes da turma filtrada (não todos do mês).
+    final itens = pendentes
+        .where((m) => ids.contains(m.alunoId))
+        .map((m) {
       final aluno = widget.alunos.firstWhere(
         (a) => a.id == m.alunoId,
         orElse: () => Aluno(id: m.alunoId, nome: m.alunoNome ?? '?'),

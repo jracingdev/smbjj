@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -26,6 +28,7 @@ import '../repositories/financeiro_config_repository.dart';
 import '../utils/aniversario_utils.dart';
 import '../utils/whatsapp_utils.dart';
 import '../core/notifications/app_alert_service.dart';
+import '../core/notifications/local_notification_service.dart';
 import '../widgets/aniversario_celebration.dart';
 
 class MainScreen extends StatefulWidget {
@@ -35,7 +38,7 @@ class MainScreen extends StatefulWidget {
   State<MainScreen> createState() => _MainScreenState();
 }
 
-class _MainScreenState extends State<MainScreen> {
+class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   int _tabIndex = 0;
   int _avisosNaoLidos = 0;
   int _medalhasNovas = 0;
@@ -49,13 +52,86 @@ class _MainScreenState extends State<MainScreen> {
   int get _badgeLoja => _pedidosPendentes;
   final _alunosKey = GlobalKey<AlunosScreenState>();
   bool _celebracaoMostrada = false;
+  Timer? _adminPollTimer;
+  bool _adminCheckEmAndamento = false;
+
+  bool get _appEmForeground =>
+      WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed ||
+      WidgetsBinding.instance.lifecycleState == null;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _atualizarAvisosNaoLidos();
+      _iniciarPollingAdmin();
     });
+  }
+
+  @override
+  void dispose() {
+    _adminPollTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _atualizarAvisosNaoLidos();
+      _iniciarPollingAdmin();
+    } else if (state == AppLifecycleState.paused) {
+      // Mantém polling leve em background enquanto o processo viver.
+    }
+  }
+
+  void _iniciarPollingAdmin() {
+    _adminPollTimer?.cancel();
+    if (!mounted) return;
+    if (!context.read<AuthProvider>().isAdmin) return;
+    _adminPollTimer = Timer.periodic(const Duration(seconds: 25), (_) {
+      if (!mounted) return;
+      if (!context.read<AuthProvider>().isAdmin) return;
+      _checarNovidadesAdmin();
+    });
+  }
+
+  Future<void> _checarNovidadesAdmin() async {
+    if (!mounted || _adminCheckEmAndamento) return;
+    if (!context.read<AuthProvider>().isAdmin) return;
+    _adminCheckEmAndamento = true;
+    try {
+      await _verificarCadastrosAdmin();
+      await _verificarPedidosAdmin();
+    } finally {
+      _adminCheckEmAndamento = false;
+    }
+  }
+
+  Future<void> _alertarAdmin({
+    required String titulo,
+    required String mensagem,
+    required Color cor,
+    required int notifId,
+  }) async {
+    if (!mounted) return;
+    if (_appEmForeground) {
+      // Foreground: banner com logo + som in-app.
+      await AppAlertService.alertar(
+        context,
+        titulo: titulo,
+        mensagem: mensagem,
+        cor: cor,
+      );
+    } else {
+      // Background: notificação do sistema (canal com som + ícone).
+      await LocalNotificationService.instance.mostrar(
+        titulo: titulo,
+        mensagem: mensagem,
+        id: notifId,
+      );
+    }
   }
 
   Future<void> _verificarCadastrosAdmin() async {
@@ -64,26 +140,30 @@ class _MainScreenState extends State<MainScreen> {
     try {
       final pendentes = await AlunoRepository().pendentesValidacao();
       final prefs = await SharedPreferences.getInstance();
-      final qtd = pendentes.length;
-      if (!prefs.containsKey('cadastros_pendentes_visto')) {
-        await prefs.setInt('cadastros_pendentes_visto', qtd);
-        if (mounted) setState(() => _cadastrosPendentes = qtd);
+      final idsAtuais = pendentes.map((a) => a.id).toList();
+      if (mounted) setState(() => _cadastrosPendentes = pendentes.length);
+
+      // Migra contador antigo → lista de IDs (evita perder alerta quando a contagem não sobe).
+      if (!prefs.containsKey('cadastros_ids_vistos')) {
+        await prefs.setStringList('cadastros_ids_vistos', idsAtuais.take(200).toList());
+        await prefs.remove('cadastros_pendentes_visto');
         return;
       }
-      final visto = prefs.getInt('cadastros_pendentes_visto') ?? 0;
-      if (mounted) setState(() => _cadastrosPendentes = qtd > visto ? qtd - visto : 0);
-      if (qtd > visto && mounted) {
-        final nomes = pendentes.take(3).map((a) => a.nome.split(' ').first).join(', ');
-        await AppAlertService.alertar(
-          context,
+
+      final vistos = (prefs.getStringList('cadastros_ids_vistos') ?? []).toSet();
+      final novos = pendentes.where((a) => !vistos.contains(a.id)).toList();
+      if (novos.isNotEmpty && mounted) {
+        final nomes = novos.take(3).map((a) => a.nome.split(' ').first).join(', ');
+        await _alertarAdmin(
           titulo: 'Novo cadastro de aluno',
-          mensagem: qtd - visto == 1
+          mensagem: novos.length == 1
               ? '$nomes aguarda validação.'
-              : '${qtd - visto} cadastro(s) aguardando: $nomes${qtd > 3 ? "…" : ""}',
+              : '${novos.length} cadastro(s) aguardando: $nomes${novos.length > 3 ? "…" : ""}',
           cor: Colors.amber.shade900,
+          notifId: 9101,
         );
       }
-      await prefs.setInt('cadastros_pendentes_visto', qtd);
+      await prefs.setStringList('cadastros_ids_vistos', idsAtuais.take(200).toList());
     } catch (_) {}
   }
 
@@ -108,13 +188,13 @@ class _MainScreenState extends State<MainScreen> {
       final novos = pedidos.where((p) => !vistos.contains(p.id)).toList();
       if (novos.isNotEmpty && mounted) {
         final primeiro = novos.first;
-        await AppAlertService.alertar(
-          context,
+        await _alertarAdmin(
           titulo: 'Nova venda na loja',
           mensagem: novos.length == 1
               ? '${primeiro.alunoNome} pediu ${primeiro.produtoNome}.'
               : '${novos.length} nova(s) venda(s). Ex.: ${primeiro.produtoNome}',
           cor: Colors.deepOrange.shade800,
+          notifId: 9102,
         );
       }
       await prefs.setStringList(
@@ -128,8 +208,7 @@ class _MainScreenState extends State<MainScreen> {
     if (!mounted) return;
     final isAdmin = context.read<AuthProvider>().isAdmin;
     if (isAdmin) {
-      await _verificarCadastrosAdmin();
-      await _verificarPedidosAdmin();
+      await _checarNovidadesAdmin();
       return;
     }
     try {

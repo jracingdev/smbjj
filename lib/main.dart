@@ -8,6 +8,7 @@ import 'core/loja/loja_publica_url.dart';
 import 'core/auth/auth_provider.dart';
 import 'core/auth/google_native_sign_in.dart';
 import 'core/supabase_service.dart';
+import 'core/notifications/local_notification_service.dart';
 import 'app.dart';
 
 void main() async {
@@ -20,6 +21,14 @@ void main() async {
       await GoogleNativeSignIn.ensureInitialized();
     } catch (e, st) {
       debugPrint('GoogleSignIn init: $e\n$st');
+    }
+  }
+
+  if (isNativeApp) {
+    try {
+      await LocalNotificationService.instance.inicializar();
+    } catch (e, st) {
+      debugPrint('LocalNotificationService init: $e\n$st');
     }
   }
 
