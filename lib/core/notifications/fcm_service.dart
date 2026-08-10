@@ -53,16 +53,10 @@ class FcmService {
 
       FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
+      // Canal local sem pedir permissão no boot (evita diálogo cedo + deny permanente).
+      await LocalNotificationService.instance.inicializar(pedirPermissao: false);
+
       final messaging = FirebaseMessaging.instance;
-      await messaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
-
-      // Garante canal Android (mesmo do LocalNotificationService) antes de pushes.
-      await LocalNotificationService.instance.inicializar();
-
       await messaging.setForegroundNotificationPresentationOptions(
         alert: true,
         badge: true,
@@ -92,6 +86,20 @@ class FcmService {
       debugPrint(
         'FcmService: Firebase indisponível (coloque google-services.json). $e\n$st',
       );
+    }
+  }
+
+  /// Chamado após o admin autorizar notificações (diálogo / Perfil).
+  Future<void> garantirPermissaoMessaging() async {
+    if (!_pronto) return;
+    try {
+      await FirebaseMessaging.instance.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+    } catch (e) {
+      debugPrint('FcmService.garantirPermissaoMessaging: $e');
     }
   }
 

@@ -29,7 +29,9 @@ import '../utils/aniversario_utils.dart';
 import '../utils/whatsapp_utils.dart';
 import '../core/notifications/admin_notification_nav.dart';
 import '../core/notifications/app_alert_service.dart';
+import '../core/notifications/fcm_service.dart';
 import '../core/notifications/local_notification_service.dart';
+import '../core/notifications/notification_permission_service.dart';
 import '../widgets/aniversario_celebration.dart';
 
 class MainScreen extends StatefulWidget {
@@ -55,6 +57,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   bool _celebracaoMostrada = false;
   Timer? _adminPollTimer;
   bool _adminCheckEmAndamento = false;
+  bool _notifPromptFeito = false;
 
   bool get _appEmForeground =>
       WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed ||
@@ -69,7 +72,15 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       _atualizarAvisosNaoLidos();
       _iniciarPollingAdmin();
       _onAdminNotifNav();
+      _pedirNotificacoesAdminSePreciso();
     });
+  }
+
+  Future<void> _pedirNotificacoesAdminSePreciso() async {
+    if (!mounted || _notifPromptFeito) return;
+    if (!context.read<AuthProvider>().isAdmin) return;
+    _notifPromptFeito = true;
+    await NotificationPermissionService.instance.garantirAposLoginAdmin(context);
   }
 
   @override
@@ -104,6 +115,14 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       _atualizarAvisosNaoLidos();
       _iniciarPollingAdmin();
+      // Voltou das Configurações do Android — sincroniza token FCM se liberou.
+      if (mounted && context.read<AuthProvider>().isAdmin) {
+        NotificationPermissionService.instance.isGranted.then((ok) async {
+          if (!ok) return;
+          await FcmService.instance.garantirPermissaoMessaging();
+          await FcmService.instance.sincronizarComUsuario(isAdmin: true);
+        });
+      }
     } else if (state == AppLifecycleState.paused) {
       // Mantém polling leve em background enquanto o processo viver.
     }

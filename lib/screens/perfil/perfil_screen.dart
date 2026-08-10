@@ -11,6 +11,8 @@ import '../../core/constants.dart';
 import '../../core/theme.dart';
 import '../../core/notifications/alert_preferences_service.dart';
 import '../../core/notifications/app_alert_service.dart';
+import '../../core/notifications/fcm_service.dart';
+import '../../core/notifications/notification_permission_service.dart';
 import '../../models/aluno.dart';
 import '../../models/mensalidade.dart';
 import '../../models/usuario.dart';
@@ -35,7 +37,7 @@ class PerfilScreen extends StatefulWidget {
   State<PerfilScreen> createState() => _PerfilScreenState();
 }
 
-class _PerfilScreenState extends State<PerfilScreen> {
+class _PerfilScreenState extends State<PerfilScreen> with WidgetsBindingObserver {
   final _alunoRepo = AlunoRepository();
   final _mensRepo = MensalidadeRepository();
   Aluno? _aluno;
@@ -46,22 +48,83 @@ class _PerfilScreenState extends State<PerfilScreen> {
   bool _fotoLoading = false;
   bool _alertasSom = true;
   bool _alertasVisual = true;
+  bool _notifSistema = false;
+  bool _notifSistemaLoading = false;
+  bool _fcmDisponivel = true;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _load();
     _carregarPrefsAlertas();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _carregarPrefsAlertas();
+    }
   }
 
   Future<void> _carregarPrefsAlertas() async {
     final prefs = AlertPreferencesService.instance;
     final som = await prefs.alertasSomAtivos;
     final visual = await prefs.alertasVisuaisAtivos;
-    if (mounted) setState(() {
+    final sistema = isNativeApp
+        ? await NotificationPermissionService.instance.isGranted
+        : false;
+    if (!mounted) return;
+    setState(() {
       _alertasSom = som;
       _alertasVisual = visual;
+      _notifSistema = sistema;
+      _fcmDisponivel = !isNativeApp || FcmService.instance.disponivel;
     });
+  }
+
+  Future<void> _onToggleNotifSistema(bool ligar) async {
+    if (_notifSistemaLoading) return;
+    setState(() => _notifSistemaLoading = true);
+    try {
+      if (!ligar) {
+        // Android não permite revogar por API — abre settings para o usuário desligar.
+        await NotificationPermissionService.instance.abrirConfiguracoes();
+      } else {
+        final st = await NotificationPermissionService.instance.solicitar(
+          abrirSettingsSeNegado: true,
+        );
+        if (!mounted) return;
+        if (st == NotifPermStatus.granted) {
+          await FcmService.instance.sincronizarComUsuario(
+            isAdmin: context.read<AuthProvider>().isAdmin,
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Permissão ainda negada. Ative Notificações nas configurações do app.',
+              ),
+              action: SnackBarAction(
+                label: 'Abrir',
+                onPressed: () =>
+                    NotificationPermissionService.instance.abrirConfiguracoes(),
+              ),
+            ),
+          );
+        }
+      }
+      final ok = await NotificationPermissionService.instance.isGranted;
+      if (mounted) setState(() => _notifSistema = ok);
+    } finally {
+      if (mounted) setState(() => _notifSistemaLoading = false);
+    }
   }
 
   Future<void> _load() async {
@@ -356,6 +419,42 @@ class _PerfilScreenState extends State<PerfilScreen> {
               Card(
                 child: Column(
                   children: [
+                    if (isNativeApp) ...[
+                      SwitchListTile(
+                        secondary: Icon(
+                          _notifSistema
+                              ? Icons.notifications_active
+                              : Icons.notifications_off_outlined,
+                          color: _notifSistema ? verdeEscuro : Colors.orange.shade800,
+                        ),
+                        title: const Text('Notificações do sistema'),
+                        subtitle: Text(
+                          _notifSistema
+                              ? 'Permissão ativa — alertas com o app fechado'
+                              : (_notifSistemaLoading
+                                  ? 'Verificando…'
+                                  : 'Desativadas — toque para ativar ou abrir Configurações'),
+                        ),
+                        value: _notifSistema,
+                        thumbColor: WidgetStateProperty.resolveWith(
+                          (states) => states.contains(WidgetState.selected) ? verdeEscuro : null,
+                        ),
+                        // Sempre com handler (nunca null) — se negada, abre Configurações.
+                        onChanged: (v) {
+                          if (_notifSistemaLoading) return;
+                          _onToggleNotifSistema(v);
+                        },
+                      ),
+                      if (!_fcmDisponivel)
+                        ListTile(
+                          leading: Icon(Icons.cloud_off_outlined, color: Colors.orange.shade800),
+                          title: const Text('Push remoto indisponível'),
+                          subtitle: const Text(
+                            'Firebase não iniciou neste aparelho. Reinstale o app ou verifique a atualização.',
+                          ),
+                        ),
+                      const Divider(height: 1),
+                    ],
                     SwitchListTile(
                       secondary: const Icon(Icons.volume_up_outlined, color: verdeEscuro),
                       title: const Text('Alertas sonoros'),

@@ -27,7 +27,8 @@ void main() async {
 
   if (isNativeApp) {
     try {
-      await LocalNotificationService.instance.inicializar();
+      // Canal/plugin no boot; pedido de permissão fica após login admin.
+      await LocalNotificationService.instance.inicializar(pedirPermissao: false);
     } catch (e, st) {
       debugPrint('LocalNotificationService init: $e\n$st');
     }

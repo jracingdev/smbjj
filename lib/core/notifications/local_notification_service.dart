@@ -21,7 +21,12 @@ class LocalNotificationService {
   bool _pronto = false;
   int _seq = 1000;
 
-  Future<void> inicializar() async {
+  AndroidFlutterLocalNotificationsPlugin? get androidPlugin =>
+      _plugin.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+
+  /// [pedirPermissao]: false no boot — o pedido explicativo fica após login admin.
+  Future<void> inicializar({bool pedirPermissao = false}) async {
     if (_pronto || kIsWeb || !isNativeApp) return;
 
     const androidInit = AndroidInitializationSettings('@drawable/ic_stat_smbjj');
@@ -32,8 +37,7 @@ class LocalNotificationService {
       onDidReceiveNotificationResponse: _onTap,
     );
 
-    final android = _plugin.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final android = androidPlugin;
     await android?.createNotificationChannel(
       const AndroidNotificationChannel(
         channelId,
@@ -44,7 +48,9 @@ class LocalNotificationService {
         enableVibration: true,
       ),
     );
-    await android?.requestNotificationsPermission();
+    if (pedirPermissao) {
+      await android?.requestNotificationsPermission();
+    }
 
     final launch = await _plugin.getNotificationAppLaunchDetails();
     if (launch?.didNotificationLaunchApp == true) {
