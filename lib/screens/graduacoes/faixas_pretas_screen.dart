@@ -61,11 +61,12 @@ class _FaixasPretasScreenState extends State<FaixasPretasScreen> {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Alunos formados na casa — ${_itens.length} faixa${_itens.length == 1 ? '' : 's'}-preta${_itens.length == 1 ? '' : 's'}',
+                            'Destaque: ${_itens.length} faixa${_itens.length == 1 ? '' : 's'}-preta${_itens.length == 1 ? '' : 's'} formada${_itens.length == 1 ? '' : 's'} na casa. O histórico de cada aluno mostra todas as faixas.',
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w700,
                               fontSize: 13,
+                              height: 1.3,
                             ),
                           ),
                         ),

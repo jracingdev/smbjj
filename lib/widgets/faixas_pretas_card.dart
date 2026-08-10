@@ -64,13 +64,13 @@ class FaixasPretasCard extends StatelessWidget {
                 ],
               ),
               Text(
-                'Formados na casa',
-                style: TextStyle(color: Colors.amber.shade200, fontSize: 12, fontWeight: FontWeight.w600),
+                'Destaque das faixas-pretas formadas na casa — o histórico completo de cada aluno inclui todas as faixas.',
+                style: TextStyle(color: Colors.amber.shade200, fontSize: 12, fontWeight: FontWeight.w600, height: 1.3),
               ),
               const SizedBox(height: 12),
               if (amostra.isEmpty)
                 Text(
-                  'Nenhuma faixa-preta formada cadastrada ainda.',
+                  'Nenhuma faixa-preta formada cadastrada ainda. As demais faixas ficam no histórico de cada aluno.',
                   style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
                 )
               else

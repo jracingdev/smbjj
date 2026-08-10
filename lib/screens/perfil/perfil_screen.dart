@@ -501,20 +501,6 @@ class _PerfilScreenState extends State<PerfilScreen> with WidgetsBindingObserver
               ),
               const SizedBox(height: 20),
 
-              ListTile(
-                leading: Icon(Icons.military_tech, color: Colors.amber.shade800),
-                title: const Text('Faixas-pretas SM BJJ'),
-                subtitle: const Text('Formados na casa'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => FaixasPretasScreen(isAdmin: isAdmin)),
-                  );
-                },
-              ),
-              const SizedBox(height: 12),
-
               if (!isAdmin) ...[
                 ListTile(
                   leading: const Icon(Icons.edit_note, color: verdeEscuro),
@@ -547,7 +533,24 @@ class _PerfilScreenState extends State<PerfilScreen> with WidgetsBindingObserver
                     grauAtual: _aluno!.grau,
                   ),
                 ],
-                const SizedBox(height: 12),
+                const SizedBox(height: 16),
+              ],
+
+              ListTile(
+                leading: Icon(Icons.military_tech, color: Colors.amber.shade800),
+                title: const Text('Faixas-pretas SM BJJ'),
+                subtitle: const Text('Destaque dos formados na casa'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => FaixasPretasScreen(isAdmin: isAdmin)),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+
+              if (!isAdmin) ...[
                 const Text('Minha Turma', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
                 const SizedBox(height: 10),
                 TurmasAlunoCard(turmas: _turmas),

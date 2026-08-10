@@ -166,11 +166,22 @@ class _HistoricoGraduacoesSectionState extends State<HistoricoGraduacoesSection>
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Expanded(
-              child: Text(
-                'Histórico de graduações',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Histórico de graduações',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Todas as faixas importam — da mais recente à mais antiga.',
+                    style: TextStyle(fontSize: 12, color: Colors.black54, height: 1.25),
+                  ),
+                ],
               ),
             ),
             if (widget.isAdmin)
@@ -181,7 +192,7 @@ class _HistoricoGraduacoesSectionState extends State<HistoricoGraduacoesSection>
               ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         if (_loading)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 24),
@@ -192,31 +203,40 @@ class _HistoricoGraduacoesSectionState extends State<HistoricoGraduacoesSection>
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Text(
               widget.isAdmin
-                  ? 'Nenhuma graduação registrada. Toque em Registrar para adicionar.'
+                  ? 'Nenhuma graduação registrada. Toque em Registrar para adicionar qualquer faixa.'
                   : 'Nenhuma graduação registrada ainda.',
               style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
             ),
           )
         else
-          ..._itens.map((g) => _GraduacaoTile(
-                graduacao: g,
-                isAdmin: widget.isAdmin,
-                onEdit: () => _abrirForm(existente: g),
-                onDelete: () => _remover(g),
-              )),
+          ...List.generate(_itens.length, (i) {
+            final g = _itens[i];
+            return _GraduacaoTimelineTile(
+              graduacao: g,
+              isFirst: i == 0,
+              isLast: i == _itens.length - 1,
+              isAdmin: widget.isAdmin,
+              onEdit: () => _abrirForm(existente: g),
+              onDelete: () => _remover(g),
+            );
+          }),
       ],
     );
   }
 }
 
-class _GraduacaoTile extends StatelessWidget {
+class _GraduacaoTimelineTile extends StatelessWidget {
   final Graduacao graduacao;
+  final bool isFirst;
+  final bool isLast;
   final bool isAdmin;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
-  const _GraduacaoTile({
+  const _GraduacaoTimelineTile({
     required this.graduacao,
+    required this.isFirst,
+    required this.isLast,
     required this.isAdmin,
     required this.onEdit,
     required this.onDelete,
@@ -225,104 +245,210 @@ class _GraduacaoTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final g = graduacao;
-    final destaque = g.isPretaFormadaCasa;
+    final isPreta = g.faixa == 'preta';
+    final smBjj = g.isPretaFormadaCasa;
+    final corFaixa = getFaixaColor(g.faixa);
     final detalhes = <String>[
       if ((g.professor ?? '').trim().isNotEmpty) 'Prof. ${g.professor!.trim()}',
       if ((g.evento ?? '').trim().isNotEmpty) g.evento!.trim(),
     ];
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.fromLTRB(12, 12, 8, 12),
-      decoration: BoxDecoration(
-        color: destaque ? Colors.black : Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: destaque ? Colors.amber.shade600 : Colors.grey.shade200,
-          width: destaque ? 1.5 : 1,
-        ),
-      ),
+    final borderColor = smBjj
+        ? Colors.amber.shade700
+        : isPreta
+            ? Colors.grey.shade800
+            : Colors.grey.shade300;
+    final bgColor = smBjj
+        ? const Color(0xFF111111)
+        : isPreta
+            ? const Color(0xFFF7F7F7)
+            : Colors.white;
+
+    return IntrinsicHeight(
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          FaixaIlustracao(faixa: g.faixa, grau: g.grau, width: 72, height: 12),
-          const SizedBox(width: 12),
-          Expanded(
+          SizedBox(
+            width: 22,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '${labelFaixa(g.faixa)} · ${labelGrau(g.grau)}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 14,
-                    color: destaque ? Colors.white : Colors.black87,
+                Expanded(
+                  child: Container(
+                    width: 2,
+                    color: isFirst ? Colors.transparent : Colors.grey.shade300,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  formatDataBr(g.dataGraduacao),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: destaque ? Colors.white70 : Colors.grey.shade700,
-                  ),
-                ),
-                if (destaque) ...[
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.shade700,
-                      borderRadius: BorderRadius.circular(6),
+                Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: corFaixa,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: smBjj
+                          ? Colors.amber.shade600
+                          : (g.faixa == 'branca' ? Colors.grey.shade500 : Colors.white),
+                      width: smBjj ? 2.5 : 2,
                     ),
-                    child: const Text(
-                      'Faixa-preta SM BJJ',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.black,
-                        letterSpacing: 0.3,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.12),
+                        blurRadius: 2,
+                        offset: const Offset(0, 1),
                       ),
-                    ),
+                    ],
                   ),
-                ],
-                if (detalhes.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    detalhes.join(' · '),
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: destaque ? Colors.white60 : Colors.grey.shade600,
-                    ),
+                ),
+                Expanded(
+                  child: Container(
+                    width: 2,
+                    color: isLast ? Colors.transparent : Colors.grey.shade300,
                   ),
-                ],
-                if ((g.observacao ?? '').trim().isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    g.observacao!.trim(),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontStyle: FontStyle.italic,
-                      color: destaque ? Colors.white70 : Colors.black54,
-                    ),
-                  ),
-                ],
+                ),
               ],
             ),
           ),
-          if (isAdmin) ...[
-            IconButton(
-              icon: Icon(Icons.edit_outlined, size: 20, color: destaque ? Colors.amber.shade200 : verdeEscuro),
-              onPressed: onEdit,
-              tooltip: 'Editar',
+          const SizedBox(width: 10),
+          Expanded(
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: EdgeInsets.fromLTRB(12, 12, isAdmin ? 4 : 12, 12),
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: borderColor, width: smBjj || isPreta ? 1.4 : 1),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  FaixaIlustracao(faixa: g.faixa, grau: g.grau, width: 72, height: 12),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${labelFaixa(g.faixa)} · ${labelGrau(g.grau)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 14,
+                            color: smBjj ? Colors.white : Colors.black87,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          formatDataBr(g.dataGraduacao),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: smBjj ? Colors.amber.shade200 : Colors.grey.shade700,
+                          ),
+                        ),
+                        if (isPreta) ...[
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: [
+                              _Badge(
+                                label: 'Faixa-preta',
+                                bg: smBjj ? Colors.grey.shade900 : Colors.black,
+                                fg: smBjj ? Colors.amber.shade300 : Colors.white,
+                                border: smBjj ? Colors.amber.shade700 : null,
+                              ),
+                              if (smBjj)
+                                _Badge(
+                                  label: 'Faixa-preta SM BJJ',
+                                  bg: Colors.amber.shade700,
+                                  fg: Colors.black,
+                                ),
+                            ],
+                          ),
+                        ],
+                        if (detalhes.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            detalhes.join(' · '),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: smBjj ? Colors.white60 : Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                        if ((g.observacao ?? '').trim().isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            g.observacao!.trim(),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontStyle: FontStyle.italic,
+                              color: smBjj ? Colors.white70 : Colors.black54,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  if (isAdmin) ...[
+                    IconButton(
+                      icon: Icon(
+                        Icons.edit_outlined,
+                        size: 20,
+                        color: smBjj ? Colors.amber.shade200 : verdeEscuro,
+                      ),
+                      onPressed: onEdit,
+                      tooltip: 'Editar',
+                    ),
+                    IconButton(
+                      icon: Icon(
+                        Icons.delete_outline,
+                        size: 20,
+                        color: smBjj ? Colors.red.shade200 : Colors.red,
+                      ),
+                      onPressed: onDelete,
+                      tooltip: 'Excluir',
+                    ),
+                  ],
+                ],
+              ),
             ),
-            IconButton(
-              icon: Icon(Icons.delete_outline, size: 20, color: destaque ? Colors.red.shade200 : Colors.red),
-              onPressed: onDelete,
-              tooltip: 'Excluir',
-            ),
-          ],
+          ),
         ],
+      ),
+    );
+  }
+}
+
+class _Badge extends StatelessWidget {
+  final String label;
+  final Color bg;
+  final Color fg;
+  final Color? border;
+
+  const _Badge({
+    required this.label,
+    required this.bg,
+    required this.fg,
+    this.border,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+        border: border != null ? Border.all(color: border!) : null,
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
+          color: fg,
+          letterSpacing: 0.3,
+        ),
       ),
     );
   }

@@ -272,7 +272,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         const SizedBox(height: 20),
 
-        _SectionTitle('Faixas-pretas SM BJJ'),
+        _SectionTitle('Destaque · Faixas-pretas SM BJJ'),
         FaixasPretasCard(pretas: _pretasFormadas, isAdmin: true),
         const SizedBox(height: 20),
 
@@ -442,7 +442,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         QuadroMedalhasCard(medalhas: _medalhas),
         const SizedBox(height: 20),
-        _SectionTitle('Faixas-pretas SM BJJ'),
+        _SectionTitle('Destaque · Faixas-pretas SM BJJ'),
         FaixasPretasCard(pretas: _pretasFormadas, isAdmin: false),
         const SizedBox(height: 20),
         _SectionTitle('Aniversariantes do mês'),
