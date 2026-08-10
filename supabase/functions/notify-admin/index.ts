@@ -1,7 +1,7 @@
 // Edge Function: envia push FCM (HTTP v1) para todos os admins.
 // Triggers: Database Webhooks em INSERT de public.alunos / public.pedidos
 // Secrets: FIREBASE_SERVICE_ACCOUNT (JSON da service account)
-// Opcional: FCM_WEBHOOK_SECRET (se definido, exige header x-webhook-secret)
+// Opcional: FCM_WEBHOOK_SECRET / NOTIFY_WEBHOOK_SECRET (header x-webhook-secret)
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -9,7 +9,16 @@ import * as jose from 'https://esm.sh/jose@5.2.0'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const serviceRoleKey = (Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '').trim()
-const webhookSecret = (Deno.env.get('FCM_WEBHOOK_SECRET') ?? '').trim()
+const webhookSecret = (
+  Deno.env.get('FCM_WEBHOOK_SECRET') ??
+  Deno.env.get('NOTIFY_WEBHOOK_SECRET') ??
+  ''
+).trim()
+const jwtSecret = (
+  Deno.env.get('SUPABASE_JWT_SECRET') ??
+  Deno.env.get('JWT_SECRET') ??
+  ''
+).trim()
 const saRaw = Deno.env.get('FIREBASE_SERVICE_ACCOUNT') ?? ''
 
 type ServiceAccount = {
@@ -22,6 +31,12 @@ type PushPayload = {
   tipo: 'aluno' | 'pedido' | 'teste'
   titulo: string
   mensagem: string
+}
+
+type AuthResult = {
+  ok: boolean
+  jwtVerifyOk: boolean
+  bearerRole: string | null
 }
 
 let cachedToken: { value: string; exp: number } | null = null
@@ -57,23 +72,78 @@ function extractBearer(req: Request): string {
   return (m?.[1] ?? '').trim()
 }
 
-function authorized(req: Request): boolean {
+/** Decodifica payload JWT sem verificar assinatura (só debug). */
+function decodeJwtPayloadUnverified(token: string): Record<string, unknown> | null {
+  try {
+    const parts = token.split('.')
+    if (parts.length < 2) return null
+    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4))
+    const jsonStr = atob(b64 + pad)
+    return JSON.parse(jsonStr) as Record<string, unknown>
+  } catch {
+    return null
+  }
+}
+
+function peekJwtRole(token: string): string | null {
+  const payload = decodeJwtPayloadUnverified(token)
+  if (!payload) return null
+  const role = payload.role
+  return typeof role === 'string' ? role : null
+}
+
+async function verifyServiceRoleJwt(token: string): Promise<boolean> {
+  if (!token || !jwtSecret || !token.includes('.')) return false
+  try {
+    const key = new TextEncoder().encode(jwtSecret)
+    const { payload } = await jose.jwtVerify(token, key, {
+      algorithms: ['HS256'],
+    })
+    return payload.role === 'service_role'
+  } catch {
+    return false
+  }
+}
+
+async function authorized(req: Request): Promise<AuthResult> {
   const accepted = acceptedServiceKeys()
   const bearer = extractBearer(req)
-  if (bearer && accepted.includes(bearer)) return true
-
-  // Database Webhooks / smoke test tambem podem mandar a chave em apikey.
   const apikey = (req.headers.get('apikey') ?? '').trim()
-  if (apikey && accepted.includes(apikey)) return true
+  const bearerRole = peekJwtRole(bearer) ?? peekJwtRole(apikey)
+
+  if (bearer && accepted.includes(bearer)) {
+    return { ok: true, jwtVerifyOk: false, bearerRole }
+  }
+  if (apikey && accepted.includes(apikey)) {
+    return { ok: true, jwtVerifyOk: false, bearerRole }
+  }
+
+  // JWT legado HS256 com claim role=service_role (mesmo se a string não bater
+  // com SUPABASE_SERVICE_ROLE_KEY injetada no runtime — ex.: rotação / mismatch).
+  let jwtVerifyOk = false
+  if (bearer) {
+    jwtVerifyOk = await verifyServiceRoleJwt(bearer)
+    if (jwtVerifyOk) return { ok: true, jwtVerifyOk, bearerRole }
+  }
+  if (apikey && apikey !== bearer) {
+    const apikeyJwtOk = await verifyServiceRoleJwt(apikey)
+    if (apikeyJwtOk) {
+      return { ok: true, jwtVerifyOk: true, bearerRole }
+    }
+  }
 
   if (webhookSecret) {
     const h = (req.headers.get('x-webhook-secret') ?? '').trim()
-    if (h && h === webhookSecret) return true
+    if (h && h === webhookSecret) {
+      return { ok: true, jwtVerifyOk: false, bearerRole }
+    }
   }
-  return false
+
+  return { ok: false, jwtVerifyOk, bearerRole }
 }
 
-function authDebug(req: Request) {
+async function authDebug(req: Request, auth: AuthResult) {
   const accepted = acceptedServiceKeys()
   const bearer = extractBearer(req)
   const apikey = (req.headers.get('apikey') ?? '').trim()
@@ -82,10 +152,13 @@ function authDebug(req: Request) {
     hasApikey: Boolean(apikey),
     hasWebhookSecretHeader: Boolean((req.headers.get('x-webhook-secret') ?? '').trim()),
     serviceKeysConfigured: accepted.length,
+    jwtSecretConfigured: Boolean(jwtSecret),
     bearerLen: bearer.length,
     apikeyLen: apikey.length,
     bearerMatch: Boolean(bearer && accepted.includes(bearer)),
     apikeyMatch: Boolean(apikey && accepted.includes(apikey)),
+    bearerRole: auth.bearerRole,
+    jwtVerifyOk: auth.jwtVerifyOk,
   }
 }
 
@@ -212,12 +285,18 @@ serve(async (req) => {
     return json({ error: 'Method not allowed' }, 405)
   }
 
-  if (!authorized(req)) {
-    console.error('notify-admin 401', authDebug(req))
+  const auth = await authorized(req)
+  if (!auth.ok) {
+    const debug = await authDebug(req, auth)
+    console.error('notify-admin 401', debug)
+    const hint =
+      auth.bearerRole === 'anon'
+        ? 'Bearer parece ser a chave anon — use service_role (Reveal) em Project Settings > API'
+        : 'Envie Authorization: Bearer <service_role|sb_secret> (ou apikey / x-webhook-secret)'
     return json({
       error: 'Unauthorized',
-      hint: 'Envie Authorization: Bearer <service_role|sb_secret> (ou apikey / x-webhook-secret)',
-      debug: authDebug(req),
+      hint,
+      debug,
     }, 401)
   }
 

@@ -65,18 +65,40 @@ if (-not $hasServiceRole) {
 # Trim evita espaco/BOM colado do Dashboard (quebra match exact na function)
 $sr = $env:SUPABASE_SERVICE_ROLE_KEY.Trim().Trim('"').Trim("'")
 
-# Aviso se parecer anon/publishable em vez de service_role
+# Decodifica payload JWT (2a parte, base64url) e imprime so role/ref — nunca a chave
+function Get-JwtPayloadClaims {
+  param([string]$Jwt)
+  $parts = $Jwt.Split('.')
+  if ($parts.Count -lt 2) { throw 'token nao e JWT (faltam partes)' }
+  $payloadB64 = $parts[1].Replace('-', '+').Replace('_', '/')
+  while ($payloadB64.Length % 4 -ne 0) { $payloadB64 += '=' }
+  $payloadJson = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($payloadB64))
+  $obj = $payloadJson | ConvertFrom-Json
+  return $obj
+}
+
+Write-Host '== Checando role da SUPABASE_SERVICE_ROLE_KEY (sem imprimir a chave) =='
 if ($sr -match '^eyJ') {
   try {
-    $payloadB64 = ($sr.Split('.')[1]).Replace('-', '+').Replace('_', '/')
-    while ($payloadB64.Length % 4 -ne 0) { $payloadB64 += '=' }
-    $payloadJson = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($payloadB64))
-    if ($payloadJson -notmatch '"role"\s*:\s*"service_role"') {
-      Write-Host 'AVISO: JWT em SUPABASE_SERVICE_ROLE_KEY nao tem role=service_role (anon/publishable?). POST tende a 401.' -ForegroundColor Yellow
+    $claims = Get-JwtPayloadClaims -Jwt $sr
+    $role = [string]$claims.role
+    $ref = [string]$claims.ref
+    Write-Host ("JWT claims: role=$role ref=$ref")
+    if ($role -ne 'service_role') {
+      Write-Host ''
+      Write-Host 'ERRO: voce setou a chave anon; use service_role (Reveal).' -ForegroundColor Red
+      Write-Host 'Dashboard > Project Settings > API > service_role > Reveal > copie para $env:SUPABASE_SERVICE_ROLE_KEY' -ForegroundColor Red
+      Write-Host ("role atual no JWT: $role") -ForegroundColor Red
+      exit 1
     }
   } catch {
-    Write-Host 'AVISO: nao foi possivel decodificar SUPABASE_SERVICE_ROLE_KEY como JWT.' -ForegroundColor Yellow
+    Write-Host ("ERRO: nao foi possivel decodificar SUPABASE_SERVICE_ROLE_KEY como JWT: " + $_.Exception.Message) -ForegroundColor Red
+    exit 1
   }
+} elseif ($sr -match '^sb_secret_') {
+  Write-Host 'Chave sb_secret_* detectada (ok para auth por match exact).'
+} else {
+  Write-Host 'AVISO: chave nao parece JWT legado nem sb_secret_*; POST pode falhar se nao bater com o runtime.' -ForegroundColor Yellow
 }
 
 $headers = @{
