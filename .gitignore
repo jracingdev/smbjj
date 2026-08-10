@@ -47,3 +47,10 @@ app.*.map.json
 # Local release artifacts
 /release/
 *.aab
+
+# Firebase / FCM secrets (NÃO commitar service account)
+*firebase-adminsdk*.json
+firebase-service-account*.json
+**/serviceAccount*.json
+# google-services.json pode ir no repo Android; se preferir local-only, descomente:
+# android/app/google-services.json

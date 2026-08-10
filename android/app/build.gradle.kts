@@ -8,6 +8,11 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Só aplica se o arquivo do Firebase Console existir (build degrada sem FCM).
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
 if (keystorePropertiesFile.exists()) {

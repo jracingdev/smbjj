@@ -15,7 +15,11 @@ Credenciais do app estão em `lib/core/supabase_service.dart` (chave publishable
 
 ## Versão atual
 
-**1.2.6** (build 11) — login com esqueci senha e biometria visível, validação de alunos, loja Storage, datas DD-MM-AAAA.
+**1.7.27** (build 58) — push FCM para admin (novo aluno / novo pedido) com app morto; ver [FCM_SETUP.md](FCM_SETUP.md).
+
+## Push FCM (admin)
+
+Para notificações com o app fechado, siga o checklist em **[FCM_SETUP.md](FCM_SETUP.md)** (`google-services.json`, SQL `supabase_admin_fcm.sql`, secrets e Edge Function `notify-admin`).
 
 ## Executar
 

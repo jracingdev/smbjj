@@ -75,5 +75,13 @@
             android:name="flutterEmbedding"
             android:value="2"/>
 
+        <!-- Canal/ícone padrão das notificações FCM (app morto/background). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="smbjj_admin_alerts"/>
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_smbjj"/>
+
     </application>
 </manifest>

@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../models/aluno.dart';
 import '../../models/usuario.dart';
 import '../../repositories/aluno_repository.dart';
+import '../notifications/fcm_service.dart';
 import 'auth_result.dart';
 import 'auth_service.dart';
 import 'biometric_auth_service.dart';
@@ -50,6 +51,9 @@ class AuthProvider extends ChangeNotifier {
     if (_usuario != null && !isAdmin) {
       await _atualizarVinculoAluno();
     }
+    if (_usuario != null && isAdmin) {
+      await FcmService.instance.sincronizarComUsuario(isAdmin: true);
+    }
 
     AuthService.instance.authStateChanges.listen((data) async {
       final event = data.event;
@@ -65,6 +69,7 @@ class AuthProvider extends ChangeNotifier {
             _alunoVinculado = null;
             notifyListeners();
           }
+          await FcmService.instance.sincronizarComUsuario(isAdmin: isAdmin);
         }
       } else if (event == AuthChangeEvent.signedOut) {
         _usuario = null;
@@ -73,6 +78,14 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
       }
     });
+  }
+
+  Future<void> _syncFcmAdmin() async {
+    try {
+      await FcmService.instance.sincronizarComUsuario(isAdmin: isAdmin);
+    } catch (e) {
+      debugPrint('AuthProvider._syncFcmAdmin: $e');
+    }
   }
 
   Future<void> _carregarAlunoVinculado() async {
@@ -120,6 +133,7 @@ class AuthProvider extends ChangeNotifier {
       } else {
         notifyListeners();
       }
+      await _syncFcmAdmin();
     }
     return result;
   }
@@ -134,6 +148,7 @@ class AuthProvider extends ChangeNotifier {
       } else {
         notifyListeners();
       }
+      await _syncFcmAdmin();
     }
     return result;
   }
@@ -222,6 +237,11 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    try {
+      await FcmService.instance.limparTokenNoLogout();
+    } catch (e) {
+      debugPrint('AuthProvider.logout FCM: $e');
+    }
     await AuthService.instance.logout();
     _usuario = null;
     _alunoVinculado = null;

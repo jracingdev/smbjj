@@ -27,6 +27,7 @@ import '../repositories/mensalidade_repository.dart';
 import '../repositories/financeiro_config_repository.dart';
 import '../utils/aniversario_utils.dart';
 import '../utils/whatsapp_utils.dart';
+import '../core/notifications/admin_notification_nav.dart';
 import '../core/notifications/app_alert_service.dart';
 import '../core/notifications/local_notification_service.dart';
 import '../widgets/aniversario_celebration.dart';
@@ -63,17 +64,39 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    AdminNotificationNav.pending.addListener(_onAdminNotifNav);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _atualizarAvisosNaoLidos();
       _iniciarPollingAdmin();
+      _onAdminNotifNav();
     });
   }
 
   @override
   void dispose() {
+    AdminNotificationNav.pending.removeListener(_onAdminNotifNav);
     _adminPollTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
+  }
+
+  void _onAdminNotifNav() {
+    final destino = AdminNotificationNav.pending.value;
+    if (destino == null || !mounted) return;
+    if (!context.read<AuthProvider>().isAdmin) {
+      AdminNotificationNav.limpar();
+      return;
+    }
+    setState(() {
+      if (destino == AdminNotifDestino.alunos) {
+        _tabIndex = 1;
+        _cadastrosPendentes = 0;
+      } else if (destino == AdminNotifDestino.loja) {
+        _tabIndex = 3;
+        _pedidosPendentes = 0;
+      }
+    });
+    AdminNotificationNav.limpar();
   }
 
   @override
