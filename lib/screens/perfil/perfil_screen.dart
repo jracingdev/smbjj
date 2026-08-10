@@ -28,8 +28,10 @@ import '../../widgets/gft_logo_image.dart';
 import '../alunos/meu_cadastro_screen.dart';
 import '../../widgets/turmas_aluno_card.dart';
 import '../../widgets/contatos_card.dart';
+import '../../widgets/historico_graduacoes_section.dart';
 import '../../repositories/turma_repository.dart';
 import '../../models/turma.dart';
+import '../graduacoes/faixas_pretas_screen.dart';
 
 class PerfilScreen extends StatefulWidget {
   const PerfilScreen({super.key});
@@ -499,6 +501,20 @@ class _PerfilScreenState extends State<PerfilScreen> with WidgetsBindingObserver
               ),
               const SizedBox(height: 20),
 
+              ListTile(
+                leading: Icon(Icons.military_tech, color: Colors.amber.shade800),
+                title: const Text('Faixas-pretas SM BJJ'),
+                subtitle: const Text('Formados na casa'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => FaixasPretasScreen(isAdmin: isAdmin)),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+
               if (!isAdmin) ...[
                 ListTile(
                   leading: const Icon(Icons.edit_note, color: verdeEscuro),
@@ -521,6 +537,16 @@ class _PerfilScreenState extends State<PerfilScreen> with WidgetsBindingObserver
                     _load();
                   },
                 ),
+                if (_aluno != null && _aluno!.cadastroValidado) ...[
+                  const SizedBox(height: 12),
+                  HistoricoGraduacoesSection(
+                    alunoId: _aluno!.id,
+                    alunoNome: _aluno!.nome,
+                    isAdmin: false,
+                    faixaAtual: _aluno!.faixa,
+                    grauAtual: _aluno!.grau,
+                  ),
+                ],
                 const SizedBox(height: 12),
                 const Text('Minha Turma', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
                 const SizedBox(height: 10),

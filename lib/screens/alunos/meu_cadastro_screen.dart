@@ -13,6 +13,7 @@ import '../../utils/date_utils.dart';
 import '../../widgets/faixa_badge.dart';
 import '../../widgets/turmas_aluno_card.dart';
 import '../../widgets/mes_ano_picker.dart';
+import '../../widgets/historico_graduacoes_section.dart';
 import '../../repositories/turma_repository.dart';
 import '../../models/turma.dart';
 
@@ -317,6 +318,14 @@ class _MeuCadastroScreenState extends State<MeuCadastroScreen> {
                   ],
                 ),
               ),
+              HistoricoGraduacoesSection(
+                alunoId: _existente!.id,
+                alunoNome: _existente!.nome,
+                isAdmin: false,
+                faixaAtual: _existente!.faixa,
+                grauAtual: _existente!.grau,
+              ),
+              const SizedBox(height: 16),
               if (_turmas.isNotEmpty) ...[
                 const Text('Minhas turmas', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
                 const SizedBox(height: 8),

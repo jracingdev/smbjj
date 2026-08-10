@@ -21,8 +21,12 @@ import '../../widgets/turmas_aluno_card.dart';
 import '../../widgets/contatos_card.dart';
 import '../../widgets/turmas_grafico_card.dart';
 import '../../widgets/quadro_medalhas_card.dart';
+import '../../widgets/faixas_pretas_card.dart';
+import '../../widgets/historico_graduacoes_section.dart';
 import '../../repositories/medalha_repository.dart';
+import '../../repositories/graduacao_repository.dart';
 import '../../models/medalha.dart';
+import '../../models/graduacao.dart';
 import '../medalhas/medalhas_admin_screen.dart';
 import '../../core/avisos/aviso_lido_service.dart';
 import '../../core/medalhas/medalha_lido_service.dart';
@@ -59,6 +63,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<Turma> _todasTurmas = [];
   Map<String, int> _contagemTurmas = {};
   List<Medalha> _medalhas = [];
+  List<Graduacao> _pretasFormadas = [];
   List<Aluno> _aniversariantesTurma = [];
   List<Aluno> _aniversariantesMes = [];
   bool _mostrarAniversarioAviso = false;
@@ -87,6 +92,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           turmaRepo.listar(apenasAtivas: false),
           turmaRepo.contagemAlunosPorTurma(),
           MedalhaRepository().listar(),
+          GraduacaoRepository().listarPretasFormadas(),
         ]);
         if (mounted) setState(() {
           _alunos = results[0] as List<Aluno>;
@@ -96,6 +102,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _todasTurmas = results[4] as List<Turma>;
           _contagemTurmas = results[5] as Map<String, int>;
           _medalhas = results[6] as List<Medalha>;
+          _pretasFormadas = results[7] as List<Graduacao>;
           _aniversariantesMes = aniversariantesDoMes(alunos: results[0] as List<Aluno>);
           _loading = false;
         });
@@ -106,6 +113,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _eventoRepo.listar(),
           MedalhaRepository().listar(),
           _alunoRepo.listar(ativo: true),
+          GraduacaoRepository().listarPretasFormadas(),
         ]);
         List<Turma> turmas = [];
         final aluno = auth.alunoVinculado;
@@ -116,6 +124,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final eventos = results[1] as List<Evento>;
         final medalhas = results[2] as List<Medalha>;
         final todosAlunos = results[3] as List<Aluno>;
+        final pretas = results[4] as List<Graduacao>;
         final naoLidos = await AvisoLidoService().contarNaoLidos(avisos);
         final medalhasNovas = await MedalhaLidoService().contarNovas(medalhas);
         final eventosNovos = await EventoLidoService().contarNaoLidos(eventos);
@@ -134,6 +143,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _avisos = avisos;
           _eventos = eventos;
           _medalhas = medalhas;
+          _pretasFormadas = pretas;
           _minhasTurmas = turmas;
           _avisosNaoLidos = naoLidos;
           _medalhasNovas = medalhasNovas;
@@ -262,6 +272,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         const SizedBox(height: 20),
 
+        _SectionTitle('Faixas-pretas SM BJJ'),
+        FaixasPretasCard(pretas: _pretasFormadas, isAdmin: true),
+        const SizedBox(height: 20),
+
         _SectionTitle('Aniversariantes do mês'),
         QuadroAniversariantesCard(aniversariantes: _aniversariantesMes),
         const SizedBox(height: 20),
@@ -296,6 +310,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
             ),
+          ),
+          const SizedBox(height: 16),
+          HistoricoGraduacoesSection(
+            alunoId: aluno.id,
+            alunoNome: aluno.nome,
+            isAdmin: false,
+            faixaAtual: aluno.faixa,
+            grauAtual: aluno.grau,
           ),
           const SizedBox(height: 16),
         ],
@@ -419,6 +441,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
         QuadroMedalhasCard(medalhas: _medalhas),
+        const SizedBox(height: 20),
+        _SectionTitle('Faixas-pretas SM BJJ'),
+        FaixasPretasCard(pretas: _pretasFormadas, isAdmin: false),
         const SizedBox(height: 20),
         _SectionTitle('Aniversariantes do mês'),
         QuadroAniversariantesCard(

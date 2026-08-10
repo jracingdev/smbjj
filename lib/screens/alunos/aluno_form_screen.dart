@@ -15,6 +15,7 @@ import '../../repositories/aluno_repository.dart';
 import '../../utils/bjj_utils.dart';
 import '../../utils/date_utils.dart';
 import '../../widgets/mes_ano_picker.dart';
+import '../../widgets/historico_graduacoes_section.dart';
 import '../alunos/validar_aluno_screen.dart';
 
 class AlunoFormScreen extends StatefulWidget {
@@ -429,6 +430,25 @@ class _AlunoFormScreenState extends State<AlunoFormScreen> {
             activeColor: verdeEscuro,
             contentPadding: EdgeInsets.zero,
           ),
+
+          if (widget.aluno != null) ...[
+            const SizedBox(height: 8),
+            HistoricoGraduacoesSection(
+              alunoId: widget.aluno!.id,
+              alunoNome: _nomeCtrl.text.trim().isEmpty ? widget.aluno!.nome : _nomeCtrl.text.trim(),
+              isAdmin: true,
+              faixaAtual: _faixa,
+              grauAtual: _grau,
+              onFaixaAtualizada: () async {
+                final atualizado = await _repo.buscarPorId(widget.aluno!.id);
+                if (!mounted || atualizado == null) return;
+                setState(() {
+                  _faixa = atualizado.faixa;
+                  _grau = atualizado.grau;
+                });
+              },
+            ),
+          ],
 
           _secao('Início nas aulas'),
           MesAnoPicker(
