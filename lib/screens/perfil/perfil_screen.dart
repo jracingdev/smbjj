@@ -538,8 +538,8 @@ class _PerfilScreenState extends State<PerfilScreen> with WidgetsBindingObserver
 
               ListTile(
                 leading: Icon(Icons.military_tech, color: Colors.amber.shade800),
-                title: const Text('Faixas-pretas SM BJJ'),
-                subtitle: const Text('Destaque dos formados na casa'),
+                title: const Text('BLACK BELT LEGACY SM BJJ'),
+                subtitle: const Text('Faixas-pretas da academia'),
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
                   Navigator.push(

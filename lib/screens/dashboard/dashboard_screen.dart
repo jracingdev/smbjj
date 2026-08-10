@@ -238,26 +238,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         const SizedBox(height: 20),
 
-        // Alunos em ordem alfabética (amostra)
-        _SectionTitle('Alunos'),
-        Card(
-          child: Column(
-            children: (_alunos.where((a) => a.ativo).toList()
-                  ..sort((a, b) => a.nome.toLowerCase().compareTo(b.nome.toLowerCase())))
-                .take(5)
-                .map((a) => ListTile(
-              leading: CircleAvatar(
-                backgroundColor: verdeEscuro,
-                child: Text(a.nome[0].toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              ),
-              title: Text(a.nome, style: const TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: Text('${getCategoriaEtaria(a.dataNascimento)} · ${a.sexo}'),
-              trailing: FaixaBadge(faixa: a.faixa, grau: a.grau),
-            )).toList(),
-          ),
-        ),
-        const SizedBox(height: 20),
-
         _AvisosCard(avisos: _avisos, isAdmin: true, onRefresh: _load),
         const SizedBox(height: 20),
 
@@ -272,7 +252,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         const SizedBox(height: 20),
 
-        _SectionTitle('Destaque · Faixas-pretas SM BJJ'),
+        _SectionTitle('Destaque · BLACK BELT LEGACY SM BJJ'),
         FaixasPretasCard(pretas: _pretasFormadas, isAdmin: true),
         const SizedBox(height: 20),
 
@@ -442,7 +422,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         QuadroMedalhasCard(medalhas: _medalhas),
         const SizedBox(height: 20),
-        _SectionTitle('Destaque · Faixas-pretas SM BJJ'),
+        _SectionTitle('Destaque · BLACK BELT LEGACY SM BJJ'),
         FaixasPretasCard(pretas: _pretasFormadas, isAdmin: false),
         const SizedBox(height: 20),
         _SectionTitle('Aniversariantes do mês'),

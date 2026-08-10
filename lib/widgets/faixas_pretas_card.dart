@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import '../models/graduacao.dart';
 import '../utils/date_utils.dart';
+import '../widgets/black_belt_legacy_title.dart';
 import '../widgets/faixa_badge.dart';
 import '../widgets/historico_graduacoes_section.dart';
 import '../screens/graduacoes/faixas_pretas_screen.dart';
 
-/// Prévia do quadro de faixas-pretas formadas pela academia.
+/// Prévia do quadro Black Belt Legacy — pretas da academia.
 class FaixasPretasCard extends StatelessWidget {
   final List<Graduacao> pretas;
   final bool isAdmin;
@@ -39,18 +40,7 @@ class FaixasPretasCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(Icons.military_tech, color: Colors.amber.shade600, size: 22),
-                  const SizedBox(width: 8),
-                  const Expanded(
-                    child: Text(
-                      'Faixas-pretas SM BJJ',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 15,
-                      ),
-                    ),
-                  ),
+                  const Expanded(child: BlackBeltLegacyTitle(maxHeight: 48)),
                   TextButton(
                     onPressed: () {
                       Navigator.push(
@@ -63,14 +53,15 @@ class FaixasPretasCard extends StatelessWidget {
                   ),
                 ],
               ),
+              const SizedBox(height: 8),
               Text(
-                'Destaque das faixas-pretas formadas na casa — o histórico completo de cada aluno inclui todas as faixas.',
+                'Honrando todas as faixas-pretas da academia — o histórico completo de cada aluno inclui todas as faixas.',
                 style: TextStyle(color: Colors.amber.shade200, fontSize: 12, fontWeight: FontWeight.w600, height: 1.3),
               ),
               const SizedBox(height: 12),
               if (amostra.isEmpty)
                 Text(
-                  'Nenhuma faixa-preta formada cadastrada ainda. As demais faixas ficam no histórico de cada aluno.',
+                  'Nenhuma faixa-preta cadastrada ainda. As demais faixas ficam no histórico de cada aluno.',
                   style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
                 )
               else

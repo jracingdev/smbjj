@@ -12,16 +12,43 @@ class GraduacaoRepository {
     return (data as List).map((m) => Graduacao.fromMap(m)).toList();
   }
 
-  /// Faixas-pretas formadas pela academia (destaque SM BJJ).
-  Future<List<Graduacao>> listarPretasFormadas() async {
+  /// Faixas-pretas da academia (Black Belt Legacy).
+  ///
+  /// Regra: todas as graduações com `faixa == 'preta'` (não só `formada_academia`).
+  /// Um registro por aluno — o de maior grau; em empate, a data mais recente.
+  /// O badge “Formado(a) na casa” continua vindo de `formada_academia` na UI.
+  Future<List<Graduacao>> listarPretasAcademia() async {
     final data = await supabase
         .from('graduacoes')
         .select()
-        .eq('formada_academia', true)
         .eq('faixa', 'preta')
         .order('data_graduacao', ascending: false);
-    return (data as List).map((m) => Graduacao.fromMap(m)).toList();
+    final todas = (data as List).map((m) => Graduacao.fromMap(m)).toList();
+    final porAluno = <String, Graduacao>{};
+    for (final g in todas) {
+      final atual = porAluno[g.alunoId];
+      if (atual == null) {
+        porAluno[g.alunoId] = g;
+        continue;
+      }
+      if (g.grau > atual.grau) {
+        porAluno[g.alunoId] = g;
+      } else if (g.grau == atual.grau &&
+          g.dataGraduacao.compareTo(atual.dataGraduacao) > 0) {
+        porAluno[g.alunoId] = g;
+      }
+    }
+    final lista = porAluno.values.toList()
+      ..sort((a, b) {
+        final porData = b.dataGraduacao.compareTo(a.dataGraduacao);
+        if (porData != 0) return porData;
+        return a.alunoNome.toLowerCase().compareTo(b.alunoNome.toLowerCase());
+      });
+    return lista;
   }
+
+  /// Compat: mesmo quadro Legacy (todas as pretas da academia).
+  Future<List<Graduacao>> listarPretasFormadas() => listarPretasAcademia();
 
   Future<Graduacao> criar(Graduacao graduacao) async {
     final map = graduacao.toMap()..remove('id');

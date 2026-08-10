@@ -3,10 +3,11 @@ import '../../core/theme.dart';
 import '../../models/graduacao.dart';
 import '../../repositories/graduacao_repository.dart';
 import '../../utils/date_utils.dart';
+import '../../widgets/black_belt_legacy_title.dart';
 import '../../widgets/faixa_badge.dart';
 import '../../widgets/historico_graduacoes_section.dart';
 
-/// Listagem completa das faixas-pretas formadas pela academia.
+/// Listagem completa das faixas-pretas da academia (Black Belt Legacy).
 class FaixasPretasScreen extends StatefulWidget {
   final bool isAdmin;
   const FaixasPretasScreen({super.key, this.isAdmin = false});
@@ -29,7 +30,7 @@ class _FaixasPretasScreenState extends State<FaixasPretasScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final list = await _repo.listarPretasFormadas();
+      final list = await _repo.listarPretasAcademia();
       if (mounted) setState(() { _itens = list; _loading = false; });
     } catch (_) {
       if (mounted) setState(() => _loading = false);
@@ -39,7 +40,15 @@ class _FaixasPretasScreenState extends State<FaixasPretasScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Faixas-pretas SM BJJ')),
+      appBar: AppBar(
+        title: const Text('BLACK BELT LEGACY SM BJJ'),
+        titleTextStyle: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w800,
+          color: Colors.white,
+          letterSpacing: 0.3,
+        ),
+      ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: verdeEscuro))
           : RefreshIndicator(
@@ -49,25 +58,24 @@ class _FaixasPretasScreenState extends State<FaixasPretasScreen> {
                 padding: const EdgeInsets.all(16),
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
                     decoration: BoxDecoration(
                       color: Colors.black,
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: Colors.amber.shade700),
                     ),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.military_tech, color: Colors.amber.shade600),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Destaque: ${_itens.length} faixa${_itens.length == 1 ? '' : 's'}-preta${_itens.length == 1 ? '' : 's'} formada${_itens.length == 1 ? '' : 's'} na casa. O histórico de cada aluno mostra todas as faixas.',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                              height: 1.3,
-                            ),
+                        const Center(child: BlackBeltLegacyTitle(maxHeight: 64)),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Honrando ${_itens.length} faixa${_itens.length == 1 ? '' : 's'}-preta${_itens.length == 1 ? '' : 's'} da academia. O histórico de cada aluno mostra todas as faixas.',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                            height: 1.3,
                           ),
                         ),
                       ],
@@ -80,8 +88,8 @@ class _FaixasPretasScreenState extends State<FaixasPretasScreen> {
                       child: Center(
                         child: Text(
                           widget.isAdmin
-                              ? 'Cadastre uma graduação de faixa preta e marque “Faixa-preta SM BJJ”.'
-                              : 'Nenhuma faixa-preta formada cadastrada ainda.',
+                              ? 'Cadastre uma graduação de faixa preta no histórico do aluno.'
+                              : 'Nenhuma faixa-preta cadastrada ainda.',
                           textAlign: TextAlign.center,
                           style: TextStyle(color: Colors.grey.shade600),
                         ),
@@ -125,23 +133,25 @@ class _FaixasPretasScreenState extends State<FaixasPretasScreen> {
                                         style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                                       ),
                                     ],
-                                    const SizedBox(height: 6),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black,
-                                        borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(color: Colors.amber.shade700),
-                                      ),
-                                      child: Text(
-                                        'Formado(a) na casa',
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w800,
-                                          color: Colors.amber.shade300,
+                                    if (g.isPretaFormadaCasa) ...[
+                                      const SizedBox(height: 6),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black,
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(color: Colors.amber.shade700),
+                                        ),
+                                        child: Text(
+                                          'Formado(a) na casa',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w800,
+                                            color: Colors.amber.shade300,
+                                          ),
                                         ),
                                       ),
-                                    ),
+                                    ],
                                   ],
                                 ),
                               ),
