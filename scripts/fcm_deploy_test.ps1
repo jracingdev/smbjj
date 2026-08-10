@@ -2,16 +2,32 @@
 #
 # Ordem de uso (PowerShell 5.1):
 #   1) cd D:\smbjj
-#   2) $env:SUPABASE_ACCESS_TOKEN = "<PAT>"          # obrigatorio (Dashboard > Account > Access Tokens)
-#   3) $env:SUPABASE_SERVICE_ROLE_KEY = "<service>" # opcional (so para POST de teste / contagem de tokens)
-#   4) powershell -ExecutionPolicy Bypass -File scripts\fcm_deploy_test.ps1
+#   2) git pull
+#   3) $env:SUPABASE_ACCESS_TOKEN = "<PAT>"          # obrigatorio (Dashboard > Account > Access Tokens)
+#   4) $env:SUPABASE_SERVICE_ROLE_KEY = "<service>" # service_role Reveal (NAO use anon)
+#   5) powershell -ExecutionPolicy Bypass -File scripts\fcm_deploy_test.ps1
 #
 # NAO cole tokens neste arquivo. NAO commit env vars.
+# Apos deploy, GET/POST devem mostrar codeVersion=v3 (se nao, o deploy nao atualizou).
 
 $ErrorActionPreference = 'Stop'
 $ProjectRef = 'zhjnxspunbtyqhlyliuw'
+$ExpectedCodeVersion = 'v3'
 $Root = Split-Path -Parent $PSScriptRoot
 Set-Location $Root
+
+Write-Host '== git pull (garantir codigo novo antes do deploy) =='
+try {
+  git pull --ff-only
+  if ($LASTEXITCODE -ne 0) {
+    Write-Host 'AVISO: git pull falhou — confirme que o working tree tem notify-admin v3 antes de seguir.' -ForegroundColor Yellow
+  } else {
+    $head = (git rev-parse --short HEAD).Trim()
+    Write-Host ("HEAD: $head")
+  }
+} catch {
+  Write-Host ("AVISO: git pull nao executado: " + $_.Exception.Message) -ForegroundColor Yellow
+}
 
 # --- Validacao de env no inicio ---
 $missing = @()
@@ -25,8 +41,9 @@ if ($missing.Count -gt 0) {
   Write-Host ''
   Write-Host 'Ordem correta:'
   Write-Host '  cd D:\smbjj'
+  Write-Host '  git pull'
   Write-Host '  $env:SUPABASE_ACCESS_TOKEN = "<PAT>"'
-  Write-Host '  $env:SUPABASE_SERVICE_ROLE_KEY = "<service_role>"   # opcional para POST de teste'
+  Write-Host '  $env:SUPABASE_SERVICE_ROLE_KEY = "<service_role Reveal>"'
   Write-Host '  powershell -ExecutionPolicy Bypass -File scripts\fcm_deploy_test.ps1'
   Write-Host ''
   Write-Host 'Tokens: Dashboard Supabase > Account > Access Tokens e Project Settings > API > service_role.'
@@ -52,6 +69,13 @@ Write-Host "== GET $base =="
 try {
   $get = Invoke-RestMethod -Uri $base -Method GET -TimeoutSec 30
   Write-Host ('GET ok: ' + ($get | ConvertTo-Json -Compress))
+  if ($null -eq $get.codeVersion) {
+    Write-Host 'AVISO: GET sem codeVersion — function no ar ainda e build antiga (redeploy/cache).' -ForegroundColor Yellow
+  } elseif ([string]$get.codeVersion -ne $ExpectedCodeVersion) {
+    Write-Host ("AVISO: GET codeVersion=$($get.codeVersion) (esperado $ExpectedCodeVersion).") -ForegroundColor Yellow
+  } else {
+    Write-Host ("GET codeVersion OK: $($get.codeVersion)")
+  }
 } catch {
   Write-Host ("GET falhou: " + $_.Exception.Message)
 }
@@ -78,17 +102,24 @@ function Get-JwtPayloadClaims {
 }
 
 Write-Host '== Checando role da SUPABASE_SERVICE_ROLE_KEY (sem imprimir a chave) =='
+$role = $null
+$ref = $null
 if ($sr -match '^eyJ') {
   try {
     $claims = Get-JwtPayloadClaims -Jwt $sr
     $role = [string]$claims.role
     $ref = [string]$claims.ref
+    # Imprimir DEPOIS de preencher $role/$ref (nao antes)
     Write-Host ("JWT claims: role=$role ref=$ref")
     if ($role -ne 'service_role') {
       Write-Host ''
-      Write-Host 'ERRO: voce setou a chave anon; use service_role (Reveal).' -ForegroundColor Red
+      Write-Host 'ERRO: voce setou a chave anon (ou outra); use service_role (Reveal).' -ForegroundColor Red
       Write-Host 'Dashboard > Project Settings > API > service_role > Reveal > copie para $env:SUPABASE_SERVICE_ROLE_KEY' -ForegroundColor Red
       Write-Host ("role atual no JWT: $role") -ForegroundColor Red
+      exit 1
+    }
+    if ($ref -and $ref -ne $ProjectRef) {
+      Write-Host ("ERRO: JWT ref=$ref nao bate com projeto $ProjectRef") -ForegroundColor Red
       exit 1
     }
   } catch {
@@ -124,6 +155,22 @@ $bodyObj = [ordered]@{
 }
 $body = $bodyObj | ConvertTo-Json -Compress
 
+function Show-Post401Hint {
+  param([string]$RespText, [string]$HttpCode)
+  if ($HttpCode -ne '401') { return }
+  $hasCodeVersion = $RespText -match '"codeVersion"'
+  if (-not $hasCodeVersion) {
+    Write-Host ''
+    Write-Host 'DIAGNOSTICO: 401 SEM codeVersion no debug.' -ForegroundColor Red
+    Write-Host 'A function deployada ainda e versao ANTIGA (antes de v3).' -ForegroundColor Red
+    Write-Host 'Faca: git pull → redeploy com este script → confira GET codeVersion=v3.' -ForegroundColor Yellow
+    return
+  }
+  if ($RespText -match '"bearerRole"\s*:\s*"anon"') {
+    Write-Host 'DIAGNOSTICO: bearerRole=anon — setou a chave publica; use service_role Reveal.' -ForegroundColor Red
+  }
+}
+
 # curl.exe envia Authorization de forma confiavel no Windows PowerShell 5.1
 # (Invoke-RestMethod / WebRequest podem omitir o header Authorization)
 $curl = Get-Command curl.exe -ErrorAction SilentlyContinue
@@ -133,15 +180,17 @@ if ($null -eq $curl) {
     $post = Invoke-RestMethod -Uri $base -Method POST -Headers $headers -Body ([System.Text.Encoding]::UTF8.GetBytes($body)) -TimeoutSec 60
     $errCount = 0
     if ($null -ne $post.errors) { $errCount = @($post.errors).Count }
-    Write-Host ("POST ok: tipo=$($post.tipo) sent=$($post.sent) total=$($post.total) reason=$($post.reason) errors=$errCount")
+    Write-Host ("POST ok: tipo=$($post.tipo) sent=$($post.sent) total=$($post.total) reason=$($post.reason) errors=$errCount codeVersion=$($post.codeVersion)")
     if ($post.error) { Write-Host ("error=" + $post.error) }
   } catch {
     Write-Host ("POST falhou: " + $_.Exception.Message)
+    $msg = ''
     if ($_.ErrorDetails.Message) {
       $msg = [string]$_.ErrorDetails.Message
-      if ($msg.Length -gt 400) { $msg = $msg.Substring(0, 400) + '...' }
+      if ($msg.Length -gt 500) { $msg = $msg.Substring(0, 500) + '...' }
       Write-Host ("body=" + $msg)
     }
+    Show-Post401Hint -RespText $msg -HttpCode '401'
   }
   exit 0
 }
@@ -166,15 +215,17 @@ try {
       $post = $respText | ConvertFrom-Json
       $errCount = 0
       if ($null -ne $post.errors) { $errCount = @($post.errors).Count }
-      Write-Host ("POST ok: tipo=$($post.tipo) sent=$($post.sent) total=$($post.total) reason=$($post.reason) errors=$errCount")
+      Write-Host ("POST ok: tipo=$($post.tipo) sent=$($post.sent) total=$($post.total) reason=$($post.reason) errors=$errCount codeVersion=$($post.codeVersion)")
       if ($post.error) { Write-Host ("error=" + $post.error) }
     } catch {
       Write-Host ("POST ok (HTTP 200): " + $respText)
     }
   } else {
     Write-Host ("POST falhou: HTTP $httpCode")
-    if ($respText.Length -gt 500) { $respText = $respText.Substring(0, 500) + '...' }
-    Write-Host ("body=" + $respText)
+    $print = $respText
+    if ($print.Length -gt 500) { $print = $print.Substring(0, 500) + '...' }
+    Write-Host ("body=" + $print)
+    Show-Post401Hint -RespText $respText -HttpCode ([string]$httpCode)
   }
 } finally {
   if (Test-Path $outFile) { Remove-Item -Force $outFile -ErrorAction SilentlyContinue }

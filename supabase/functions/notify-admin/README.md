@@ -16,6 +16,13 @@ supabase secrets set FCM_WEBHOOK_SECRET="um-segredo-forte"
 supabase functions deploy notify-admin --no-verify-jwt
 ```
 
-`--no-verify-jwt` permite Database Webhooks (service role no header). A function ainda valida `Authorization: Bearer <SERVICE_ROLE|sb_secret>`, `apikey` ou `x-webhook-secret`.
+`--no-verify-jwt` permite Database Webhooks (service role no header). A function ainda valida:
+
+1. Match exact com `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_SECRET_KEYS`
+2. JWT com `role=service_role` + `ref` do projeto (aceito mesmo sem `SUPABASE_JWT_SECRET`; tradeoff documentado no código — uso interno/webhooks)
+3. HMAC HS256 se `SUPABASE_JWT_SECRET` ou `JWT_SECRET` estiver setado como secret
+4. `x-webhook-secret` se configurado
+
+O debug 401 / GET inclui `codeVersion` (ex.: `v3`) para confirmar qual build está no ar.
 
 Veja `FCM_SETUP.md` na raiz do repositório.
