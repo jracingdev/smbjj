@@ -72,39 +72,71 @@ supabase secrets set FCM_WEBHOOK_SECRET="troque-por-um-segredo-forte"
 
 ## 5) Deploy da function
 
-```bash
-supabase functions deploy notify-admin --no-verify-jwt
-```
-
-URL típica:
+Project ref: `zhjnxspunbtyqhlyliuw`  
+URL:
 
 ```
 https://zhjnxspunbtyqhlyliuw.supabase.co/functions/v1/notify-admin
 ```
 
-`--no-verify-jwt` é necessário para Database Webhooks. A function valida `Authorization: Bearer <SERVICE_ROLE_KEY>` (ou `x-webhook-secret`).
+### Via CLI (recomendado)
+
+1. Crie um Access Token em [Account → Access Tokens](https://supabase.com/dashboard/account/tokens)
+2. No PowerShell:
+
+```powershell
+$env:SUPABASE_ACCESS_TOKEN = "sbp_..."   # não commitar
+cd D:\smbjj
+npx supabase functions deploy notify-admin --project-ref zhjnxspunbtyqhlyliuw --no-verify-jwt
+```
+
+Ou use o script (deploy + smoke test):
+
+```powershell
+$env:SUPABASE_ACCESS_TOKEN = "sbp_..."
+$env:SUPABASE_SERVICE_ROLE_KEY = "..."   # opcional, só para POST de teste
+powershell -ExecutionPolicy Bypass -File scripts\fcm_deploy_test.ps1
+```
+
+`config.toml` já define `verify_jwt = false` para `notify-admin`. A flag `--no-verify-jwt` reforça isso. A function ainda valida `Authorization: Bearer <SERVICE_ROLE_KEY>` (ou `x-webhook-secret`).
+
+### Via Dashboard (se não houver CLI/token)
+
+1. [Edge Functions](https://supabase.com/dashboard/project/zhjnxspunbtyqhlyliuw/functions) → **Deploy a new function**
+2. Nome: `notify-admin`
+3. Cole o código de `supabase/functions/notify-admin/index.ts`
+4. Desative **Verify JWT** / habilite invocação com service role
+5. Confirme o secret `FIREBASE_SERVICE_ACCOUNT` em Edge Functions → Secrets
 
 ---
 
 ## 6) Database Webhooks (Dashboard)
 
-Em **Database → Webhooks** (ou Integrations → Database Webhooks), crie **dois** webhooks:
+A Management API não cria o webhook HTTP completo com headers customizados de forma simples — faça no Dashboard:
+
+Abra [Database Webhooks](https://supabase.com/dashboard/project/zhjnxspunbtyqhlyliuw/integrations/webhooks/overview) (ou **Database → Webhooks**).
+
+Crie **dois** webhooks idênticos, mudando só a tabela:
 
 ### A) Novo aluno
 
-- Table: `public.alunos`
-- Events: **Insert**
-- Type: HTTP Request
-- Method: POST
-- URL: `https://<PROJECT_REF>.supabase.co/functions/v1/notify-admin`
-- Headers:
-  - `Authorization`: `Bearer <SERVICE_ROLE_KEY>`
-  - `Content-Type`: `application/json`
-  - (opcional) `x-webhook-secret`: mesmo valor de `FCM_WEBHOOK_SECRET`
+1. **Create a new hook**
+2. Name: `notify-admin-aluno`
+3. Table: `public.alunos`
+4. Events: **Insert** (só Insert)
+5. Type: **HTTP Request**
+6. Method: **POST**
+7. URL: `https://zhjnxspunbtyqhlyliuw.supabase.co/functions/v1/notify-admin`
+8. Headers:
+   - `Content-Type` = `application/json`
+   - `Authorization` = `Bearer <SERVICE_ROLE_KEY>`  
+     (Settings → API → `service_role` → Reveal; não use a anon/publishable)
+   - (opcional) `x-webhook-secret` = mesmo valor de `FCM_WEBHOOK_SECRET`
+9. Salvar
 
 ### B) Novo pedido
 
-- Igual ao anterior, table `public.pedidos`, event **Insert**
+- Igual ao A, name `notify-admin-pedido`, table `public.pedidos`, event **Insert**
 
 O body padrão do webhook já inclui `table`, `type`, `record` — a function monta título/mensagem.
 

@@ -1,0 +1,6 @@
+# Supabase CLI — projeto CT SM BJJ
+# project-ref remoto: zhjnxspunbtyqhlyliuw
+
+[functions.notify-admin]
+# Database Webhooks chamam com service role (não JWT de usuário)
+verify_jwt = false
