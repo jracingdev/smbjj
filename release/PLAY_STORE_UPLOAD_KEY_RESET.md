@@ -1,86 +1,96 @@
-# Play Store — Reset da upload key (Opção B)
+# Play Store — Reset da upload key (Opção B) — PRONTO
 
-Este guia cobre o fluxo quando o **keystore de upload local** não corresponde ao certificado registrado na Play Console, e só existem certificados públicos (`.der`) sem a chave privada (`.jks`).
+**Status (2026-08-10):** reset **aprovado** pela Google. Nova upload key válida a partir de **12/08/2026 17:43 UTC**.  
+**Não enviar o AAB à Play antes dessa data/hora.**
 
-## Contexto (diagnóstico)
+## AAB pronto (nova chave)
 
-| Artefato | SHA-1 | Papel |
-|---|---|---|
-| Play espera (upload) | `DB:6E:9F:E9:B9:E5:C4:36:6F:46:D0:F2:B3:38:E8:19:F0:C2:2D:04` | Certificado de upload registrado |
-| `upload_cert.der` (baixado da Play) | `DB:6E:...` (igual ao acima) | **Só certificado público** — não assina AAB |
-| Keystore local atual (`upload-keystore.jks`) | `D3:98:12:B7:02:8C:60:9F:3B:BF:78:2B:3E:0B:E8:1A:86:CC:0E:5E` | Não bate com a Play |
-| `deployment_cert.der` | `F6:64:AA:3A:59:C9:CC:67:16:05:3E:7A:12:8E:75:E8:C7:9D:F7:ED` | App signing key da Google (Play App Signing) — **não** é upload key |
+| Campo | Valor |
+|---|---|
+| Arquivo | `D:\smbjj\release\smbjj-1.7.31-62-api36-NEWKEY.aab` |
+| Versão | **1.7.31** (versionCode **62**) |
+| Tamanho | ~69,5 MB |
+| SHA1 da assinatura (upload) | `27:EF:AB:43:0F:CB:72:49:A0:24:A0:64:E9:61:DD:E1:FA:0B:3F:A0` |
+| Alias | `upload` |
+| CN | `CN=CT SM BJJ Academia, OU=JRacing Dev, O=JRacing Dev, L=Rio de Janeiro, ST=RJ, C=BR` |
 
-**Importante:** arquivos `.der` / `.pem` exportados pela Play são certificados **públicos**. Sem o `.jks` (ou `.p12`) que contém a chave privada correspondente ao SHA-1 `DB:6E:...`, não é possível assinar um AAB aceito pela Play. Por isso a Opção B (reset da upload key).
+Liberação Play (nova chave aceita): **após 12/08/2026 17:43 UTC**.
 
-Não há `.jks` recuperável em `d:\chaves privadas\smbjj\` com o fingerprint antigo.
-
-## Arquivos gerados (fora do git)
-
-Local seguro (não versionar):
+## Backups / arquivos (fora do git)
 
 | Arquivo | Uso |
 |---|---|
-| `d:\chaves privadas\smbjj\upload-keystore-NEW.jks` | Novo keystore de upload |
-| `d:\chaves privadas\smbjj\upload_certificate_NEW.pem` | Enviar no pedido de reset na Play |
-| `d:\chaves privadas\smbjj\upload_certificate_NEW.der` | Cópia pública do novo cert |
-| `d:\chaves privadas\smbjj\upload-keystore-NEW.credentials.txt` | Senhas (anotar em gerenciador de senhas) |
-| `d:\chaves privadas\smbjj\key.properties.NEW` | Modelo de `android/key.properties` **após** aprovação |
+| `d:\chaves privadas\smbjj\upload-keystore-NEW.jks` | Novo keystore de upload (fonte) |
+| `d:\chaves privadas\smbjj\upload-keystore-OLD-D398.jks` | Backup do keystore antigo (SHA1 `D3:98:...`) |
+| `d:\chaves privadas\smbjj\key.properties.OLD` | Backup do `key.properties` antigo |
+| `d:\chaves privadas\smbjj\key.properties.NEW` | Modelo (sem BOM; `storeFile=upload-keystore.jks`) |
+| `d:\chaves privadas\smbjj\upload_certificate_NEW.pem` | PEM enviado no reset |
+| `d:\chaves privadas\smbjj\upload-keystore-NEW.credentials.txt` | Senhas (cofre) |
 
-Fingerprint do **novo** certificado de upload (após reset, a Play deve passar a esperar este):
+No projeto (gitignore):
 
-- SHA-1: `27:EF:AB:43:0F:CB:72:49:A0:24:A0:64:E9:61:DD:E1:FA:0B:3F:A0`
-- Alias: `upload`
+- `android/upload-keystore.jks` ← cópia do NEW
+- `android/key.properties` ← a partir do NEW (UTF-8 **sem BOM**)
 
----
+## Contexto histórico
 
-## AGORA (antes da aprovação da Google)
+| Artefato | SHA-1 | Papel |
+|---|---|---|
+| Play (upload antiga) | `DB:6E:9F:E9:B9:E5:C4:36:6F:46:D0:F2:B3:38:E8:19:F0:C2:2D:04` | Upload key perdida |
+| Keystore local antigo | `D3:98:12:B7:02:8C:60:9F:3B:BF:78:2B:3E:0B:E8:1A:86:CC:0E:5E` | Backup `…-OLD-D398.jks` |
+| **Nova upload key (atual)** | `27:EF:AB:43:0F:CB:72:49:A0:24:A0:64:E9:61:DD:E1:FA:0B:3F:A0` | Em uso no AAB NEWKEY |
+| `deployment_cert.der` | `F6:64:AA:3A:59:C9:CC:67:16:05:3E:7A:12:8E:75:E8:C7:9D:F7:ED` | App signing key Google |
 
-1. Abra [Google Play Console](https://play.google.com/console) → app **SMBJJ** (ou nome do app).
-2. Vá em **Testar e lançar** → **Integridade do app** (App integrity) → seção **Assinatura do app** / **Upload key certificate**.
-3. Escolha **Solicitar redefinição da chave de upload** (*Request upload key reset*).
-4. Anexe / envie o arquivo:
-   - `d:\chaves privadas\smbjj\upload_certificate_NEW.pem`
-5. Informe o motivo (ex.: perda do keystore de upload antigo; certificado público `DB:6E:...` sem chave privada).
-6. Envie o pedido e **aguarde a aprovação** (pode levar alguns dias; a Google envia e-mail).
-7. **Não** substitua ainda `android/upload-keystore.jks` nem `android/key.properties` no fluxo de release — builds assinados com o keystore novo serão rejeitados até o reset valer.
-8. Guarde backup do JKS + senhas fora do PC (cofre / gerenciador de senhas). O arquivo de credenciais está em:
-   - `d:\chaves privadas\smbjj\upload-keystore-NEW.credentials.txt`
+## Checklist de upload (só depois de 12/08/2026 17:43 UTC)
 
-## DEPOIS da aprovação da Google
+1. [ ] Confirmar na Play Console o certificado de upload SHA-1 `27:EF:...`
+2. [ ] Enviar `release\smbjj-1.7.31-62-api36-NEWKEY.aab` (teste interno / produção)
+3. [ ] Colar What's new (abaixo / `PLAY_STORE_1.7.31.md`)
+4. [ ] Confirmar versionName **1.7.31** / versionCode **62** e aceite da assinatura
 
-1. Confirme na Play Console que o certificado de upload passou a mostrar SHA-1  
-   `27:EF:AB:43:0F:CB:72:49:A0:24:A0:64:E9:61:DD:E1:FA:0B:3F:A0`.
-2. Copie o novo keystore para o projeto:
-   ```powershell
-   Copy-Item -LiteralPath "d:\chaves privadas\smbjj\upload-keystore-NEW.jks" `
-     -Destination "D:\smbjj\android\upload-keystore.jks" -Force
-   ```
-3. Atualize `android/key.properties` com o conteúdo de  
-   `d:\chaves privadas\smbjj\key.properties.NEW`  
-   (esses arquivos já estão no `.gitignore` do Android — não commitar).
-4. Gere o AAB:
-   ```powershell
-   cd D:\smbjj
-   flutter build appbundle --release
-   ```
-5. Faça upload do AAB na Play Console (teste interno / produção conforme o fluxo).
-6. Confirme que a Play aceita a assinatura (sem erro de certificado de upload).
+## What's new — PT-BR (curta)
+
+```
+Novidades nesta versão:
+• Notificações push para administradores (FCM)
+• Cobrança de mensalidades pelo WhatsApp em lote
+• Histórico de graduações dos alunos
+• Destaque BLACK BELT LEGACY no app
+• Início mais limpo, sem a seção de Alunos
+• Melhorias na permissão de notificações
+```
+
+## What's new — PT-BR (completa)
+
+```
+Atualização CT SM BJJ:
+
+• Push FCM para admins (avisos importantes mesmo com o app em segundo plano)
+• Cobrança WhatsApp em lote para mensalidades em atraso
+• Histórico de graduações (registro e consulta de faixas/graus)
+• Seção BLACK BELT LEGACY em destaque
+• Remoção da listagem de Alunos na tela Início (navegação mais direta)
+• Fluxo de permissão de notificações mais claro no Android
+
+Obrigado por treinar e usar o app da academia.
+```
 
 ## O que NÃO fazer
 
-- Não commitar `.jks`, `.pem`, `.der` de chave, nem `key.properties` / arquivos de senha.
-- Não usar `deployment_cert.der` como upload key (é a chave da Google para App Signing).
-- Não esperar que `upload_cert.der` antigo assine o AAB — falta a chave privada `DB:6E:...`.
+- Não fazer upload do AAB **antes** de **12/08/2026 17:43 UTC**.
+- Não commitar `.jks`, `key.properties`, senhas, AAB/APK.
+- Não reutilizar o keystore `D3:98:...` / `DB:6E:...` para novos uploads.
 - Não fazer force push nem versionar backups de chave no repositório.
 
-## Referência rápida — ordem correta
+## Referência rápida
 
 ```
-[AGORA]  Gerar novo JKS + exportar PEM  →  já feito
-[AGORA]  Pedir reset na Play com upload_certificate_NEW.pem
-[ESPERAR] Aprovação Google
-[DEPOIS] Copiar JKS → android/upload-keystore.jks
-[DEPOIS] Aplicar key.properties.NEW → android/key.properties
-[DEPOIS] flutter build appbundle --release → upload na Play
+[FEITO] Gerar novo JKS + PEM + pedir reset
+[FEITO] Reset aprovado (válido a partir de 12/08/2026 17:43 UTC)
+[FEITO] Copiar JKS NEW → android/upload-keystore.jks
+[FEITO] Aplicar key.properties (sem BOM)
+[FEITO] flutter build appbundle --release → smbjj-1.7.31-62-api36-NEWKEY.aab
+[FEITO] SHA1 AAB = 27:EF:...
+[AGUARDAR] 12/08/2026 17:43 UTC
+[DEPOIS] Upload na Play Console
 ```
