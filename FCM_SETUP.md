@@ -1,4 +1,4 @@
-# Push FCM para admin (CT SM BJJ)
+﻿# Push FCM para admin (CT SM BJJ)
 
 Push sonora/visual (logo + canal `smbjj_admin_alerts`) quando:
 
@@ -90,13 +90,16 @@ cd D:\smbjj
 npx supabase functions deploy notify-admin --project-ref zhjnxspunbtyqhlyliuw --no-verify-jwt
 ```
 
-Ou use o script (deploy + smoke test):
+Ou use o script (deploy + smoke test). Ordem obrigatoria:
 
 ```powershell
-$env:SUPABASE_ACCESS_TOKEN = "sbp_..."
-$env:SUPABASE_SERVICE_ROLE_KEY = "..."   # opcional, só para POST de teste
+cd D:\smbjj
+$env:SUPABASE_ACCESS_TOKEN = "sbp_..."           # obrigatorio (Account > Access Tokens)
+$env:SUPABASE_SERVICE_ROLE_KEY = "..."           # opcional, so para POST de teste
 powershell -ExecutionPolicy Bypass -File scripts\fcm_deploy_test.ps1
 ```
+
+O script valida as env vars no inicio e falha com mensagem clara se `SUPABASE_ACCESS_TOKEN` faltar.
 
 `config.toml` já define `verify_jwt = false` para `notify-admin`. A flag `--no-verify-jwt` reforça isso. A function ainda valida `Authorization: Bearer <SERVICE_ROLE_KEY>` (ou `x-webhook-secret`).
 
