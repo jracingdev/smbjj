@@ -62,7 +62,23 @@ if (-not $hasServiceRole) {
   exit 0
 }
 
-$sr = $env:SUPABASE_SERVICE_ROLE_KEY
+# Trim evita espaco/BOM colado do Dashboard (quebra match exact na function)
+$sr = $env:SUPABASE_SERVICE_ROLE_KEY.Trim().Trim('"').Trim("'")
+
+# Aviso se parecer anon/publishable em vez de service_role
+if ($sr -match '^eyJ') {
+  try {
+    $payloadB64 = ($sr.Split('.')[1]).Replace('-', '+').Replace('_', '/')
+    while ($payloadB64.Length % 4 -ne 0) { $payloadB64 += '=' }
+    $payloadJson = [System.Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($payloadB64))
+    if ($payloadJson -notmatch '"role"\s*:\s*"service_role"') {
+      Write-Host 'AVISO: JWT em SUPABASE_SERVICE_ROLE_KEY nao tem role=service_role (anon/publishable?). POST tende a 401.' -ForegroundColor Yellow
+    }
+  } catch {
+    Write-Host 'AVISO: nao foi possivel decodificar SUPABASE_SERVICE_ROLE_KEY como JWT.' -ForegroundColor Yellow
+  }
+}
+
 $headers = @{
   Authorization  = "Bearer $sr"
   apikey         = $sr
@@ -86,18 +102,59 @@ $bodyObj = [ordered]@{
 }
 $body = $bodyObj | ConvertTo-Json -Compress
 
-try {
-  $post = Invoke-RestMethod -Uri $base -Method POST -Headers $headers -Body ([System.Text.Encoding]::UTF8.GetBytes($body)) -TimeoutSec 60
-  # Nao imprime tokens/erros longos; so resumo
-  $errCount = 0
-  if ($null -ne $post.errors) { $errCount = @($post.errors).Count }
-  Write-Host ("POST ok: tipo=$($post.tipo) sent=$($post.sent) total=$($post.total) reason=$($post.reason) errors=$errCount")
-  if ($post.error) { Write-Host ("error=" + $post.error) }
-} catch {
-  Write-Host ("POST falhou: " + $_.Exception.Message)
-  if ($_.ErrorDetails.Message) {
-    $msg = [string]$_.ErrorDetails.Message
-    if ($msg.Length -gt 400) { $msg = $msg.Substring(0, 400) + '...' }
-    Write-Host ("body=" + $msg)
+# curl.exe envia Authorization de forma confiavel no Windows PowerShell 5.1
+# (Invoke-RestMethod / WebRequest podem omitir o header Authorization)
+$curl = Get-Command curl.exe -ErrorAction SilentlyContinue
+if ($null -eq $curl) {
+  Write-Host 'curl.exe nao encontrado; tentando Invoke-RestMethod (pode falhar com 401 no PS 5.1)...' -ForegroundColor Yellow
+  try {
+    $post = Invoke-RestMethod -Uri $base -Method POST -Headers $headers -Body ([System.Text.Encoding]::UTF8.GetBytes($body)) -TimeoutSec 60
+    $errCount = 0
+    if ($null -ne $post.errors) { $errCount = @($post.errors).Count }
+    Write-Host ("POST ok: tipo=$($post.tipo) sent=$($post.sent) total=$($post.total) reason=$($post.reason) errors=$errCount")
+    if ($post.error) { Write-Host ("error=" + $post.error) }
+  } catch {
+    Write-Host ("POST falhou: " + $_.Exception.Message)
+    if ($_.ErrorDetails.Message) {
+      $msg = [string]$_.ErrorDetails.Message
+      if ($msg.Length -gt 400) { $msg = $msg.Substring(0, 400) + '...' }
+      Write-Host ("body=" + $msg)
+    }
   }
+  exit 0
+}
+
+$outFile = [System.IO.Path]::GetTempFileName()
+$bodyFile = [System.IO.Path]::GetTempFileName()
+try {
+  # Arquivo evita que o PowerShell mastigue aspas do JSON na linha de comando do curl
+  [System.IO.File]::WriteAllText($bodyFile, $body, [System.Text.UTF8Encoding]::new($false))
+  $httpCode = & curl.exe -sS -o $outFile -w '%{http_code}' -X POST $base `
+    -H "Authorization: Bearer $sr" `
+    -H "apikey: $sr" `
+    -H 'Content-Type: application/json' `
+    --data-binary "@$bodyFile" `
+    --max-time 60
+  $respText = ''
+  if (Test-Path $outFile) {
+    $respText = [System.IO.File]::ReadAllText($outFile)
+  }
+  if ($httpCode -eq '200') {
+    try {
+      $post = $respText | ConvertFrom-Json
+      $errCount = 0
+      if ($null -ne $post.errors) { $errCount = @($post.errors).Count }
+      Write-Host ("POST ok: tipo=$($post.tipo) sent=$($post.sent) total=$($post.total) reason=$($post.reason) errors=$errCount")
+      if ($post.error) { Write-Host ("error=" + $post.error) }
+    } catch {
+      Write-Host ("POST ok (HTTP 200): " + $respText)
+    }
+  } else {
+    Write-Host ("POST falhou: HTTP $httpCode")
+    if ($respText.Length -gt 500) { $respText = $respText.Substring(0, 500) + '...' }
+    Write-Host ("body=" + $respText)
+  }
+} finally {
+  if (Test-Path $outFile) { Remove-Item -Force $outFile -ErrorAction SilentlyContinue }
+  if (Test-Path $bodyFile) { Remove-Item -Force $bodyFile -ErrorAction SilentlyContinue }
 }

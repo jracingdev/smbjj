@@ -101,7 +101,9 @@ powershell -ExecutionPolicy Bypass -File scripts\fcm_deploy_test.ps1
 
 O script valida as env vars no inicio e falha com mensagem clara se `SUPABASE_ACCESS_TOKEN` faltar.
 
-`config.toml` já define `verify_jwt = false` para `notify-admin`. A flag `--no-verify-jwt` reforça isso. A function ainda valida `Authorization: Bearer <SERVICE_ROLE_KEY>` (ou `x-webhook-secret`).
+`config.toml` já define `verify_jwt = false` para `notify-admin`. A flag `--no-verify-jwt` reforça isso. A function ainda valida `Authorization: Bearer <SERVICE_ROLE_KEY>` (ou `apikey` / `x-webhook-secret`).
+
+**401 no POST de teste:** quase sempre é auth (não “0 tokens”). Causas comuns: (1) `Invoke-RestMethod` no Windows PowerShell 5.1 omitindo o header `Authorization` — o script usa `curl.exe` no POST; (2) chave errada (anon em vez de `service_role` / `sb_secret`); (3) deploy sem `--no-verify-jwt`. Com auth ok e 0 tokens, a function responde **200** com `reason: nenhum token FCM`.
 
 ### Via Dashboard (se não houver CLI/token)
 
@@ -179,7 +181,8 @@ curl -X POST "https://<PROJECT_REF>.supabase.co/functions/v1/notify-admin" \
 |---------|----------|
 | App roda sem push | `google-services.json` presente? Log `FcmService: Firebase Messaging pronto`? |
 | Token não grava | Usuário é `role = admin`? SQL `supabase_admin_fcm.sql` aplicado? |
-| Webhook 401 | Header `Authorization: Bearer` com **service role** |
+| Webhook / POST 401 | Header `Authorization: Bearer` com **service_role** (não anon); redeploy com `--no-verify-jwt`; no PS 5.1 preferir `curl.exe` ou o script `fcm_deploy_test.ps1` |
+| POST 200 + `nenhum token FCM` | Auth ok — falta login admin no app (grava em `admin_fcm_tokens`) |
 | Function 500 OAuth | JSON da service account completo (`project_id`, `client_email`, `private_key`) |
 | Sem som | Canal `smbjj_admin_alerts` → importância Alta; som do sistema não silenciado |
 

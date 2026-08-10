@@ -8,8 +8,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import * as jose from 'https://esm.sh/jose@5.2.0'
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const webhookSecret = Deno.env.get('FCM_WEBHOOK_SECRET') ?? ''
+const serviceRoleKey = (Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '').trim()
+const webhookSecret = (Deno.env.get('FCM_WEBHOOK_SECRET') ?? '').trim()
 const saRaw = Deno.env.get('FIREBASE_SERVICE_ACCOUNT') ?? ''
 
 type ServiceAccount = {
@@ -33,19 +33,60 @@ function json(body: unknown, status = 200) {
   })
 }
 
+/** Chaves privilegiadas aceitas (legacy service_role + novos sb_secret_*). */
+function acceptedServiceKeys(): string[] {
+  const keys = new Set<string>()
+  if (serviceRoleKey) keys.add(serviceRoleKey)
+  try {
+    const raw = Deno.env.get('SUPABASE_SECRET_KEYS') ?? ''
+    if (raw) {
+      const parsed = JSON.parse(raw) as Record<string, unknown>
+      for (const v of Object.values(parsed)) {
+        if (typeof v === 'string' && v.trim()) keys.add(v.trim())
+      }
+    }
+  } catch {
+    // ignore JSON invalido
+  }
+  return [...keys]
+}
+
+function extractBearer(req: Request): string {
+  const auth = (req.headers.get('Authorization') ?? '').trim()
+  const m = /^Bearer\s+(.+)$/i.exec(auth)
+  return (m?.[1] ?? '').trim()
+}
+
 function authorized(req: Request): boolean {
-  const auth = req.headers.get('Authorization') ?? ''
-  if (auth === `Bearer ${serviceRoleKey}`) return true
+  const accepted = acceptedServiceKeys()
+  const bearer = extractBearer(req)
+  if (bearer && accepted.includes(bearer)) return true
+
+  // Database Webhooks / smoke test tambem podem mandar a chave em apikey.
+  const apikey = (req.headers.get('apikey') ?? '').trim()
+  if (apikey && accepted.includes(apikey)) return true
+
   if (webhookSecret) {
-    const h = req.headers.get('x-webhook-secret') ?? ''
+    const h = (req.headers.get('x-webhook-secret') ?? '').trim()
     if (h && h === webhookSecret) return true
   }
-  // Database Webhooks do Supabase usam o service role no Authorization.
-  // Aceita também chamada autenticada com service role via apikey.
-  const apikey = req.headers.get('apikey') ?? ''
-  if (apikey && apikey === serviceRoleKey) return true
-  // Sem secret configurado: ainda exige Bearer service role.
   return false
+}
+
+function authDebug(req: Request) {
+  const accepted = acceptedServiceKeys()
+  const bearer = extractBearer(req)
+  const apikey = (req.headers.get('apikey') ?? '').trim()
+  return {
+    hasAuthorization: Boolean((req.headers.get('Authorization') ?? '').trim()),
+    hasApikey: Boolean(apikey),
+    hasWebhookSecretHeader: Boolean((req.headers.get('x-webhook-secret') ?? '').trim()),
+    serviceKeysConfigured: accepted.length,
+    bearerLen: bearer.length,
+    apikeyLen: apikey.length,
+    bearerMatch: Boolean(bearer && accepted.includes(bearer)),
+    apikeyMatch: Boolean(apikey && accepted.includes(apikey)),
+  }
 }
 
 function parseWebhookOrManual(body: Record<string, unknown>): PushPayload | null {
@@ -172,7 +213,12 @@ serve(async (req) => {
   }
 
   if (!authorized(req)) {
-    return json({ error: 'Unauthorized' }, 401)
+    console.error('notify-admin 401', authDebug(req))
+    return json({
+      error: 'Unauthorized',
+      hint: 'Envie Authorization: Bearer <service_role|sb_secret> (ou apikey / x-webhook-secret)',
+      debug: authDebug(req),
+    }, 401)
   }
 
   if (!saRaw) {
@@ -204,7 +250,11 @@ serve(async (req) => {
     return json({ ok: true, ignored: true, reason: 'evento não mapeado' })
   }
 
-  const db = createClient(supabaseUrl, serviceRoleKey)
+  const adminKey = serviceRoleKey || acceptedServiceKeys()[0]
+  if (!adminKey) {
+    return json({ error: 'Nenhuma service key no runtime da function' }, 500)
+  }
+  const db = createClient(supabaseUrl, adminKey)
   const { data: tokens, error } = await db
     .from('admin_fcm_tokens')
     .select('id, token, user_id, usuarios!inner(role)')
