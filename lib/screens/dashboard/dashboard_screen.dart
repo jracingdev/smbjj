@@ -22,6 +22,7 @@ import '../../widgets/contatos_card.dart';
 import '../../widgets/turmas_grafico_card.dart';
 import '../../widgets/quadro_medalhas_card.dart';
 import '../../widgets/faixas_pretas_card.dart';
+import '../../widgets/quadro_faixas_card.dart';
 import '../../widgets/historico_graduacoes_section.dart';
 import '../../repositories/medalha_repository.dart';
 import '../../repositories/graduacao_repository.dart';
@@ -144,6 +145,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _eventos = eventos;
           _medalhas = medalhas;
           _pretasFormadas = pretas;
+          _alunos = todosAlunos;
           _minhasTurmas = turmas;
           _avisosNaoLidos = naoLidos;
           _medalhasNovas = medalhasNovas;
@@ -250,6 +252,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _load();
           },
         ),
+        const SizedBox(height: 20),
+
+        _SectionTitle('Quadro de faixas'),
+        QuadroFaixasCard(alunos: _alunos),
         const SizedBox(height: 20),
 
         _SectionTitle('Destaque · BLACK BELT LEGACY SM BJJ'),
@@ -421,6 +427,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
         QuadroMedalhasCard(medalhas: _medalhas),
+        const SizedBox(height: 20),
+        _SectionTitle('Quadro de faixas'),
+        QuadroFaixasCard(alunos: _alunos, apenasVisiveis: true),
         const SizedBox(height: 20),
         _SectionTitle('Destaque · BLACK BELT LEGACY SM BJJ'),
         FaixasPretasCard(pretas: _pretasFormadas, isAdmin: false),
